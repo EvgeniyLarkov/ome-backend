@@ -38,6 +38,7 @@ export class AuthService {
       email: loginDto.email,
     });
 
+    console.log(onlyAdmin);
     // if (
     //   !user ||
     //   (user &&

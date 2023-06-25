@@ -9,6 +9,7 @@ const options = {
   keepConnectionAlive: true,
   autoLoadEntities: true,
   migrations: [`${__dirname}/database/migrations/**/*{.ts,.js}`],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
 };
 
 export default new DataSource(options);

@@ -2,6 +2,7 @@ import { Module, CacheModule } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import databaseConfig from './config/database.config';
+import mongoConfig from './config/mongo.config';
 import authConfig from './config/auth.config';
 import appConfig from './config/app.config';
 import mailConfig from './config/mail.config';
@@ -38,6 +39,8 @@ import { LoggerModule } from './logger/app-logger.module';
 import { BullModule } from '@nestjs/bull';
 import redisConfig from './config/redis.config';
 import { QueueModule } from './queues/queue.module';
+import { MapsModule } from './maps/maps.module';
+import { MongoModule } from './database/mongo.module';
 
 @Module({
   imports: [
@@ -47,6 +50,7 @@ import { QueueModule } from './queues/queue.module';
       load: [
         databaseConfig,
         authConfig,
+        mongoConfig,
         appConfig,
         mailConfig,
         fileConfig,
@@ -109,6 +113,7 @@ import { QueueModule } from './queues/queue.module';
       }),
       inject: [ConfigService],
     }),
+    MongoModule,
     QueueModule,
     SharedModule,
     DatabaseModule,
@@ -123,6 +128,7 @@ import { QueueModule } from './queues/queue.module';
     MailModule,
     HomeModule,
     ChatModule,
+    MapsModule,
     TgBotModule,
   ],
   providers: [IsExist],

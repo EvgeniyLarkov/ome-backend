@@ -11,6 +11,4 @@ const source = new SeedingSource({
   defaultSeeders: [AppSeeder],
 });
 
-console.log(source);
-
 export default source;
