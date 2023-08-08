@@ -17,7 +17,7 @@ export class MapEvent {
   @Prop([Number])
   coordinates: number[];
 
-  @Prop()
+  @Prop({ type: 'Mixed' })
   data: Record<string, unknown>;
 
   @Prop({ required: true })

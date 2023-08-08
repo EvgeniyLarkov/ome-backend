@@ -17,8 +17,8 @@ export class MapsService {
   constructor(
     @InjectRepository(MapEntity)
     @InjectModel(MapEvent.name)
-    private mapEventModel: Model<MapEvent>,
-    private mapsRepository: Repository<MapEntity>,
+    private readonly mapEventModel: Model<MapEvent>,
+    private readonly mapsRepository: Repository<MapEntity>,
     private readonly logger: AppLogger,
   ) {
     this.logger.setContext('MapsService');
