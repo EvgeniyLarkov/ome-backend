@@ -10,14 +10,14 @@ import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { CreateMapDto } from './dto/create-map.dto';
 import { MapEvent } from './entities/map-event.entity';
 import { Model } from 'mongoose';
-import { CreateMapEventDto } from './dto/create-map-event.dto';
+import { MapEventDto } from './dto/map-event.dto';
 
 @Injectable()
 export class MapsService {
   constructor(
-    @InjectRepository(MapEntity)
     @InjectModel(MapEvent.name)
     private readonly mapEventModel: Model<MapEvent>,
+    @InjectRepository(MapEntity)
     private readonly mapsRepository: Repository<MapEntity>,
     private readonly logger: AppLogger,
   ) {
@@ -83,10 +83,10 @@ export class MapsService {
     });
   }
 
-  async createMapEvent(user: User, mapData: CreateMapEventDto) {
+  async createMapEvent(userHash: User['hash'], mapData: MapEventDto) {
     const mapEventData = {
       ...mapData,
-      creatorHash: user.hash,
+      creatorHash: userHash,
     };
 
     const mapEvent = new this.mapEventModel(mapEventData);

@@ -15,7 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { IRequestUser } from 'src/auth/types/user';
 import { MapsService } from './maps.service';
 import { CreateMapDto } from './dto/create-map.dto';
-import { CreateMapEventDto } from './dto/create-map-event.dto';
+import { MapEventDto } from './dto/map-event.dto';
 
 @ApiTags('Maps')
 @Controller({
@@ -69,10 +69,10 @@ export class MapsController {
   @Post(':hash/event')
   async createMapEvent(
     @Request() request: IRequestUser,
-    @Body() data: CreateMapEventDto,
+    @Body() data: MapEventDto,
     @Param('hash') hash: string,
   ) {
-    return await this.mapsService.createMapEvent(request.user, {
+    return await this.mapsService.createMapEvent(request.user.hash, {
       ...data,
       mapHash: hash,
     });

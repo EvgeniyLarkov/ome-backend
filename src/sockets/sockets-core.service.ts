@@ -2,17 +2,27 @@ import { CACHE_MANAGER, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 import { Cache } from 'cache-manager';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { AppLogger } from 'src/logger/app-logger.service';
 import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import serializeResponse from 'src/utils/ws-response-serializer';
 import { SocketStateService } from './sockets-state.service';
 
-export interface IWsResponseData<T> {
+export type IWsResponseData<T> =
+  | IWsResponseDataToUser<T>
+  | IWsResponseDataToRoom<T>;
+
+export interface IWsResponseDataToUser<T> {
   message: T;
   event: string;
   userHash: User['hash'] | User['hash'][];
+}
+
+export interface IWsResponseDataToRoom<T> {
+  message: T;
+  event: string;
+  room: string[] | string;
 }
 
 @Injectable()
@@ -27,7 +37,7 @@ export class SocketCoreService {
     this.logger.setContext('SocketCoreService');
   }
 
-  public sendMessage<T>(data: IWsResponseData<T>): void {
+  public sendMessage<T>(data: IWsResponseDataToUser<T>): void {
     try {
       const { message, userHash, event } = data;
 
@@ -57,6 +67,35 @@ export class SocketCoreService {
     } catch (err) {
       this.logger.error('ws send error: ', err);
     }
+  }
+
+  public sendToRoom<T>(server: Server, data: IWsResponseDataToRoom<T>): void {
+    try {
+      const { message, room, event } = data;
+
+      const rooms = typeof room === 'string' ? [room] : room;
+
+      if (!rooms) {
+        this.logger.warn('No rooms to send data');
+        return null;
+      }
+
+      if (rooms.length === 0) {
+        this.logger.warn('Cannot find rooms to send data');
+        return null;
+      }
+
+      rooms.forEach((room) => {
+        server.to(room).emit(event, serializeResponse(message));
+      });
+    } catch (err) {
+      this.logger.error('ws send error: ', err);
+    }
+  }
+
+  public joinRoom(client: Socket, mapHash: string) {
+    void client.join(mapHash);
+    this.logger.log(`Client join room: ${mapHash}`);
   }
 
   async handleConnection(client: Socket) {

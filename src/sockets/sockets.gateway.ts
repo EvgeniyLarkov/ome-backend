@@ -7,7 +7,11 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { SocketStateService } from './sockets-state.service';
-import { IWsResponseData, SocketCoreService } from './sockets-core.service';
+import {
+  IWsResponseDataToRoom,
+  IWsResponseDataToUser,
+  SocketCoreService,
+} from './sockets-core.service';
 // import { HttpToWsInterceptor } from './http-to-ws-exception.interceptor';
 import { UseFilters } from '@nestjs/common';
 import { WebsocketExceptionsFilter } from './ws-exceptions.filter';
@@ -29,15 +33,23 @@ export class SocketsGateway
     readonly socketCoreService: SocketCoreService,
   ) {}
 
-  public sendMessage<T>(data: IWsResponseData<T>) {
+  public sendMessage<T>(data: IWsResponseDataToUser<T>) {
     return this.socketCoreService.sendMessage(data);
+  }
+
+  public sendRoomMessage<T>(server: Server, data: IWsResponseDataToRoom<T>) {
+    return this.socketCoreService.sendToRoom(server, data);
+  }
+
+  public joinRoom(client: Socket, mapHash: string) {
+    return this.socketCoreService.joinRoom(client, mapHash);
   }
 
   async handleConnection(client: Socket) {
     return await this.socketCoreService.handleConnection(client);
   }
 
-  handleDisconnect(client: Socket) {
+  public handleDisconnect(client: Socket) {
     return this.socketCoreService.handleDisconnect(client);
   }
 }

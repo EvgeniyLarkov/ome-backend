@@ -5,6 +5,8 @@ import { MapEntity } from './entities/map.entity';
 import { MapsController } from './maps.controller';
 import { MapsService } from './maps.service';
 import { MapEvent, MapEventSchema } from './entities/map-event.entity';
+import { MapsGateway } from './maps.gateway';
+import { SocketModule } from 'src/sockets/sockets.module';
 
 @Module({
   imports: [
@@ -12,9 +14,10 @@ import { MapEvent, MapEventSchema } from './entities/map-event.entity';
     MongooseModule.forFeature([
       { name: MapEvent.name, schema: MapEventSchema },
     ]),
+    SocketModule,
   ],
   controllers: [MapsController],
-  providers: [MapsService],
+  providers: [MapsService, MapsGateway],
   exports: [MapsService],
 })
 export class MapsModule {}
