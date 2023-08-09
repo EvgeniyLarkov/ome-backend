@@ -1,11 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import getShortId from 'src/utils/short-id-generator';
 
 export type MapEventDocument = HydratedDocument<MapEvent>;
 
 @Schema()
 export class MapEvent {
-  @Prop({ index: true, unique: true })
+  @Prop({ index: true, unique: true, default: () => getShortId() })
   hash: string;
 
   @Prop({ index: true, default: 0 })
@@ -14,8 +15,11 @@ export class MapEvent {
   @Prop({ required: true, default: 0 })
   status: number;
 
-  @Prop([Number])
-  coordinates: number[];
+  @Prop()
+  lat: number | null;
+
+  @Prop()
+  lng: number | null;
 
   @Prop({ type: 'Mixed' })
   data: Record<string, unknown>;

@@ -85,6 +85,6 @@ export class MapsController {
     @Request() request: IRequestUser,
     @Param('hash') hash: string,
   ) {
-    return await this.mapsService.getMapEvents(request.user, hash);
+    return await this.mapsService.getSelfMapEvents(request.user, hash);
   }
 }

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
+import { mapActionTypes } from '../types/map.types';
 
 export class MapEventDto {
   @ApiProperty({ example: 'A4KF2kfD' })
@@ -11,12 +12,12 @@ export class MapEventDto {
 
   @ApiProperty({ example: 0 })
   @IsNotEmpty()
-  type: number;
+  type: mapActionTypes;
 
   @ApiProperty({ example: { lat: 51.505, lng: -0.09 } })
   @Transform(({ value }) => ({
-    lat: parseInt(value.lat, 10),
-    lng: parseInt(value.lng, 10),
+    lat: parseFloat(value.lat),
+    lng: parseFloat(value.lng),
   }))
   @IsNotEmpty()
   coordinates: { lat: number; lng: number };

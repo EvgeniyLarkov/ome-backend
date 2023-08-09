@@ -3,6 +3,8 @@ import {
   ClassSerializerInterceptor,
   Inject,
   UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { ApiTags } from '@nestjs/swagger';
@@ -12,14 +14,16 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
+  WsResponse,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { SocketCoreService } from 'src/sockets/sockets-core.service';
 import { SocketStateService } from 'src/sockets/sockets-state.service';
 import { SocketsGateway } from 'src/sockets/sockets.gateway';
 import { MapsService } from './maps.service';
-import { mapsEventNames } from './types/map.types';
+import { MAP_EVENTS } from './types/map.types';
 import { MapEventDto } from './dto/map-event.dto';
+import { MapEvent } from './entities/map-event.entity';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -44,11 +48,11 @@ export class MapsGateway extends SocketsGateway {
 
   @WebSocketServer() server: Server;
 
-  @SubscribeMessage(mapsEventNames.join_map)
-  joinMap(
+  @SubscribeMessage(MAP_EVENTS.join_map)
+  async joinMap(
     @MessageBody() data: { mapHash: string },
     @ConnectedSocket() client: Socket,
-  ): void {
+  ): Promise<WsResponse<MapEvent[]>> {
     const userHash = this.socketService.getUserBySocketId(client.id);
 
     this.socketCoreService.joinRoom(client, data.mapHash);
@@ -61,13 +65,18 @@ export class MapsGateway extends SocketsGateway {
     //TO-DO sanitize sending data
     this.sendRoomMessage(this.server, {
       message: response,
-      event: mapsEventNames.join_map,
+      event: MAP_EVENTS.join_map,
       room: data.mapHash,
     });
+
+    const mapData = await this.mapsService.getMapEvents(data.mapHash);
+
+    return { event: MAP_EVENTS.get_actions, data: mapData };
   }
 
-  @SubscribeMessage(mapsEventNames.new_event)
-  async handleNewMessage(
+  @SubscribeMessage(MAP_EVENTS.new_action)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleNewMapEvent(
     @MessageBody() data: MapEventDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
@@ -78,7 +87,7 @@ export class MapsGateway extends SocketsGateway {
     //TO-DO sanitize sending data
     this.sendRoomMessage(this.server, {
       message: response,
-      event: mapsEventNames.new_event,
+      event: MAP_EVENTS.new_action,
       room: data.mapHash,
     });
   }

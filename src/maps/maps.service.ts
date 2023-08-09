@@ -11,6 +11,7 @@ import { CreateMapDto } from './dto/create-map.dto';
 import { MapEvent } from './entities/map-event.entity';
 import { Model } from 'mongoose';
 import { MapEventDto } from './dto/map-event.dto';
+import { MapEventDB } from './dto/map-event.db';
 
 @Injectable()
 export class MapsService {
@@ -84,22 +85,56 @@ export class MapsService {
   }
 
   async createMapEvent(userHash: User['hash'], mapData: MapEventDto) {
-    const mapEventData = {
-      ...mapData,
+    const { mapHash, type, coordinates, data } = mapData;
+
+    const mapEventData: MapEventDB = {
       creatorHash: userHash,
+      mapHash,
+      type,
+      lat: null,
+      lng: null,
+      status: 0,
     };
+
+    // TO-DO Add checks and errors
+    if (coordinates) {
+      mapEventData.lat = coordinates.lat;
+      mapEventData.lng = coordinates.lng;
+    }
+
+    if (data) {
+      mapEventData.data = data;
+    }
 
     const mapEvent = new this.mapEventModel(mapEventData);
 
     return mapEvent.save();
   }
 
-  async getMapEvents(user: User, hash: string) {
-    const mapEvents = this.mapEventModel
-      .find({
-        mapHash: hash,
-        creatorHash: user.hash,
-      })
+  async getMapEvents(mapHash: string) {
+    const mapEvents = await this.mapEventModel
+      .find(
+        {
+          mapHash,
+        },
+        null,
+        { lean: true },
+      )
+      .exec();
+
+    return mapEvents;
+  }
+
+  async getSelfMapEvents(user: User, hash: string) {
+    const mapEvents = await this.mapEventModel
+      .find(
+        {
+          mapHash: hash,
+          creatorHash: user.hash,
+        },
+        null,
+        { lean: true },
+      )
       .exec();
 
     return mapEvents;
