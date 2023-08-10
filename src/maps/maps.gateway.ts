@@ -24,6 +24,7 @@ import { MapsService } from './maps.service';
 import { MAP_EVENTS } from './types/map.types';
 import { MapEventDto } from './dto/map-event.dto';
 import { MapEvent } from './entities/map-event.entity';
+import { DropMapEventDto } from './dto/drop-map-event.dto';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -88,6 +89,24 @@ export class MapsGateway extends SocketsGateway {
     this.sendRoomMessage(this.server, {
       message: response,
       event: MAP_EVENTS.new_action,
+      room: data.mapHash,
+    });
+  }
+
+  @SubscribeMessage(MAP_EVENTS.drop_action)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleDropMapEvent(
+    @MessageBody() data: DropMapEventDto,
+    @ConnectedSocket() client: Socket,
+  ): Promise<void> {
+    const userHash = this.socketService.getUserBySocketId(client.id);
+
+    const response = await this.mapsService.dropMapEvent(userHash, data);
+
+    //TO-DO sanitize sending data
+    this.sendRoomMessage(this.server, {
+      message: response,
+      event: MAP_EVENTS.drop_action,
       room: data.mapHash,
     });
   }

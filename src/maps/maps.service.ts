@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectModel } from '@nestjs/mongoose';
 import { Repository } from 'typeorm';
@@ -12,6 +12,8 @@ import { MapEvent } from './entities/map-event.entity';
 import { Model } from 'mongoose';
 import { MapEventDto } from './dto/map-event.dto';
 import { MapEventDB } from './dto/map-event.db';
+import { WsException } from '@nestjs/websockets';
+import { DropMapEventDto } from './dto/drop-map-event.dto';
 
 @Injectable()
 export class MapsService {
@@ -85,30 +87,62 @@ export class MapsService {
   }
 
   async createMapEvent(userHash: User['hash'], mapData: MapEventDto) {
-    const { mapHash, type, coordinates, data } = mapData;
+    try {
+      const { mapHash, type, coordinates, data } = mapData;
 
-    const mapEventData: MapEventDB = {
-      creatorHash: userHash,
-      mapHash,
-      type,
-      lat: null,
-      lng: null,
-      status: 0,
-    };
+      const mapEventData: MapEventDB = {
+        creatorHash: userHash,
+        mapHash,
+        type,
+        lat: null,
+        lng: null,
+        status: 0,
+      };
 
-    // TO-DO Add checks and errors
-    if (coordinates) {
-      mapEventData.lat = coordinates.lat;
-      mapEventData.lng = coordinates.lng;
+      // TO-DO Add checks and errors
+      if (coordinates) {
+        mapEventData.lat = coordinates.lat;
+        mapEventData.lng = coordinates.lng;
+      }
+
+      if (data) {
+        mapEventData.data = data;
+      }
+
+      const mapEvent = new this.mapEventModel(mapEventData);
+
+      return await mapEvent.save();
+    } catch (err) {
+      new WsException({
+        status: HttpStatus.BAD_REQUEST,
+      });
     }
+  }
 
-    if (data) {
-      mapEventData.data = data;
+  async dropMapEvent(userHash: User['hash'], mapData: DropMapEventDto) {
+    try {
+      const { mapHash, hash } = mapData;
+
+      const mapEventData: Partial<MapEventDB> = {
+        status: -1,
+        deletedAt: new Date(),
+      };
+
+      const result = await this.mapEventModel.findOneAndUpdate(
+        {
+          hash: hash,
+          mapHash,
+        },
+        mapEventData,
+        { new: true, lean: true },
+      );
+
+      return result;
+    } catch (err) {
+      new WsException({
+        status: HttpStatus.BAD_REQUEST,
+      });
     }
-
-    const mapEvent = new this.mapEventModel(mapEventData);
-
-    return mapEvent.save();
   }
 
   async getMapEvents(mapHash: string) {
@@ -120,6 +154,11 @@ export class MapsService {
         null,
         { lean: true },
       )
+      .where({
+        status: {
+          $gte: 0,
+        },
+      })
       .exec();
 
     return mapEvents;

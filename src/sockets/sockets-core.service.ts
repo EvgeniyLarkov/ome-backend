@@ -135,10 +135,9 @@ export class SocketCoreService {
       return this.socketService.add(user.hash, client);
     } catch (err) {
       this.logger.error(err);
-      client.emit('unathorized', {
-        error: err,
+      throw new WsException({
+        status: HttpStatus.UNAUTHORIZED,
       });
-      client.disconnect();
     }
   }
 
@@ -163,10 +162,9 @@ export class SocketCoreService {
       }
     } catch (err) {
       this.logger.error(err);
-      client.emit('unathorized', {
-        error: err,
+      throw new WsException({
+        status: HttpStatus.UNAUTHORIZED,
       });
-      client.disconnect();
     }
   }
 

@@ -3,6 +3,7 @@ export const MAP_EVENTS = {
   join_map: 'join-map',
   leave_map: 'leave-map',
   get_actions: 'get-map-actions',
+  drop_action: 'drop_action',
 } as const;
 
 type MAP_EVENTS_KEYS = keyof typeof MAP_EVENTS;

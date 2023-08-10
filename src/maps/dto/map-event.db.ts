@@ -10,4 +10,6 @@ export class MapEventDB {
   creatorHash: string;
   mapHash: string;
   version?: number;
+  deletedAt?: Date;
+  createdAt?: Date;
 }
