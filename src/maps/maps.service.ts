@@ -14,6 +14,8 @@ import { MapEventDto } from './dto/map-event.dto';
 import { MapEventDB } from './dto/map-event.db';
 import { WsException } from '@nestjs/websockets';
 import { DropMapEventDto } from './dto/drop-map-event.dto';
+import { ChangeMapEventDto } from './dto/change-map-event.dto';
+import { isLatLngAsObject } from 'src/utils/isLatLngAsObject';
 
 @Injectable()
 export class MapsService {
@@ -121,6 +123,7 @@ export class MapsService {
 
   async dropMapEvent(userHash: User['hash'], mapData: DropMapEventDto) {
     try {
+      // TO-DO Need to add permissions by user
       const { mapHash, hash } = mapData;
 
       const mapEventData: Partial<MapEventDB> = {
@@ -132,6 +135,36 @@ export class MapsService {
         {
           hash: hash,
           mapHash,
+        },
+        mapEventData,
+        { new: true, lean: true },
+      );
+
+      return result;
+    } catch (err) {
+      new WsException({
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+  }
+
+  async changeMapEvent(userHash: User['hash'], mapData: ChangeMapEventDto) {
+    try {
+      // Types of payload and necessary fields already checked
+
+      const mapEventData: Partial<MapEventDB> = {};
+
+      if (mapData.coordinates && isLatLngAsObject(mapData.coordinates)) {
+        mapEventData.lat = mapData.coordinates.lat;
+        mapEventData.lng = mapData.coordinates.lng;
+      }
+
+      // TO-DO add data fields
+
+      const result = await this.mapEventModel.findOneAndUpdate(
+        {
+          hash: mapData.hash,
+          mapHash: mapData.mapHash,
         },
         mapEventData,
         { new: true, lean: true },
