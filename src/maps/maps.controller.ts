@@ -14,8 +14,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { IRequestUser } from 'src/auth/types/user';
 import { MapsService } from './maps.service';
-import { CreateMapDto } from './dto/create-map.dto';
-import { MapEventDto } from './dto/map-event.dto';
+import { CreateMapDto } from './dto/map/create-map.dto';
+import { MapEventDto } from './dto/actions/map-event.dto';
 
 @ApiTags('Maps')
 @Controller({

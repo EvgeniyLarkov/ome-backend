@@ -6,8 +6,8 @@ import {
   MinLength,
   Validate,
 } from 'class-validator';
-import { FileEntity } from '../../files/entities/file.entity';
-import { IsExist } from '../../shared/validators/is-exists.validator';
+import { FileEntity } from '../../../files/entities/file.entity';
+import { IsExist } from '../../../shared/validators/is-exists.validator';
 
 export class CreateMapDto {
   @ApiProperty({ example: 'My new map' })

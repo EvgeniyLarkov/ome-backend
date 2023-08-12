@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
-import { mapActionTypes } from '../types/map.types';
+import { mapActionTypes } from '../../types/map.types';
 
 export class MapEventDto {
   @ApiProperty({ example: 'A4KF2kfD' })

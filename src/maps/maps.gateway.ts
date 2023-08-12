@@ -22,10 +22,10 @@ import { SocketStateService } from 'src/sockets/sockets-state.service';
 import { SocketsGateway } from 'src/sockets/sockets.gateway';
 import { MapsService } from './maps.service';
 import { MAP_EVENTS } from './types/map.types';
-import { MapEventDto } from './dto/map-event.dto';
+import { MapEventDto } from './dto/actions/map-event.dto';
 import { MapEvent } from './entities/map-event.entity';
-import { DropMapEventDto } from './dto/drop-map-event.dto';
-import { ChangeMapEventDto } from './dto/change-map-event.dto';
+import { DropMapEventDto } from './dto/actions/drop-map-event.dto';
+import { ChangeMapEventDto } from './dto/actions/change-map-event.dto';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
