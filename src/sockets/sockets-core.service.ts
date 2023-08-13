@@ -8,6 +8,8 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
 import serializeResponse from 'src/utils/ws-response-serializer';
 import { SocketStateService } from './sockets-state.service';
+import getShortId from 'src/utils/short-id-generator';
+import { SOCKET_SERVICE_EVENTS, onConnectedResponseDTO } from './socket.types';
 
 export type IWsResponseData<T> =
   | IWsResponseDataToUser<T>
@@ -93,51 +95,81 @@ export class SocketCoreService {
     }
   }
 
-  public joinRoom(client: Socket, mapHash: string) {
-    void client.join(mapHash);
-    this.logger.log(`Client join room: ${mapHash}`);
+  public joinRoom(client: Socket, roomHash: string) {
+    void client.join(roomHash);
+    this.logger.log(`Client join room: ${roomHash}`);
   }
 
   async handleConnection(client: Socket) {
     try {
       const token = this.getTokenFromClient(client);
 
-      if (!token) {
-        throw new WsException({
-          status: HttpStatus.UNAUTHORIZED,
-        });
-      }
+      let user = null;
 
-      const payload = this.jwtService.verify(token);
+      if (token) {
+        const payload = this.jwtService.verify(token);
 
-      const user = await this.usersService.findOne({ id: payload.id });
+        user = await this.usersService.findOne({ id: payload.id });
 
-      if (!user) {
-        new WsException({
-          status: HttpStatus.UNAUTHORIZED,
-        });
-      }
+        if (!user) {
+          new WsException({
+            status: HttpStatus.UNAUTHORIZED,
+          });
+        }
 
-      this.logger.log(
-        `Connected to socket service --- User: ${user.firstName} ${user.lastName} Hash: ${user.hash}`,
-      );
-
-      const connections = this.socketService.get(user.hash) || [];
-
-      if (connections.length === 0) {
-        await this.cacheManager.set(
-          `online.${user.hash}`,
-          true,
-          60 * 60 * 1000,
+        this.logger.log(
+          `🟢 Connected to socket service --- User: ${user.firstName} ${user.lastName} Hash: ${user.hash}`,
         );
-      }
 
-      return this.socketService.add(user.hash, client);
+        const connections = this.socketService.get(user.hash) || [];
+
+        if (connections.length === 0) {
+          await this.cacheManager.set(
+            `online.${user.hash}`,
+            true,
+            60 * 60 * 1000,
+          );
+        }
+
+        const result = this.socketService.add(user.hash, client);
+
+        this.emitServiceOnJoinData(client, {
+          result,
+        });
+      } else {
+        let anonId = this.getAnonymousIdFromClient(client);
+
+        if (!anonId) {
+          anonId = getShortId(12);
+        }
+
+        const user = await this.usersService.findOne({ hash: anonId });
+
+        if (user) {
+          new WsException({
+            status: HttpStatus.UNAUTHORIZED,
+          });
+        }
+
+        const connections = this.socketService.get(anonId) || [];
+
+        this.logger.log(
+          `🟢 Connected to socket service --- Anon client: ${client.handshake.address} Id: ${anonId}`,
+        );
+
+        if (connections.length === 0) {
+          await this.cacheManager.set(`online.${anonId}`, true, 60 * 60 * 1000);
+        }
+
+        const result = this.socketService.add(anonId, client);
+
+        this.emitServiceOnJoinData(client, {
+          result,
+          anonId,
+        });
+      }
     } catch (err) {
       this.logger.error(err);
-      throw new WsException({
-        status: HttpStatus.UNAUTHORIZED,
-      });
     }
   }
 
@@ -145,26 +177,37 @@ export class SocketCoreService {
     try {
       const token = this.getTokenFromClient(client);
 
-      if (!token) {
-        throw new WsException({
-          status: HttpStatus.UNAUTHORIZED,
-        });
-      }
+      if (token) {
+        const payload = this.jwtService.verify(token);
 
-      const payload = this.jwtService.verify(token);
+        this.socketService.remove(payload.hash, client);
 
-      this.socketService.remove(payload.hash, client);
+        const connections = this.socketService.get(payload.hash) || [];
 
-      const connections = this.socketService.get(payload.hash) || [];
+        this.logger.log(
+          `⛔ Disconnected from socket service --- Anon user: ${client.handshake.address} Id: ${client.id}`,
+        );
 
-      if (connections.length === 0) {
-        await this.cacheManager.set(`online.${payload.hash}`, false);
+        if (connections.length === 0) {
+          await this.cacheManager.set(`online.${payload.hash}`, false);
+        }
+      } else {
+        const anonId = this.getAnonymousIdFromClient(client);
+
+        this.socketService.remove(anonId, client);
+
+        this.logger.log(
+          `⛔ Disconnected from socket service --- Anon user: ${client.handshake.address} Id: ${anonId}`,
+        );
+
+        const connections = this.socketService.get(anonId) || [];
+
+        if (connections.length === 0) {
+          await this.cacheManager.set(`online.${anonId}`, false);
+        }
       }
     } catch (err) {
       this.logger.error(err);
-      throw new WsException({
-        status: HttpStatus.UNAUTHORIZED,
-      });
     }
   }
 
@@ -172,5 +215,13 @@ export class SocketCoreService {
     return (
       client.handshake?.headers?.authorization?.replace('Bearer ', '') || null
     );
+  }
+
+  getAnonymousIdFromClient(client: Socket) {
+    return client.handshake?.headers?.['anonymous-id'].toString() || null;
+  }
+
+  emitServiceOnJoinData(client: Socket, data: onConnectedResponseDTO) {
+    client.emit(SOCKET_SERVICE_EVENTS.on_connect, data);
   }
 }

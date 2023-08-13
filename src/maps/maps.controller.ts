@@ -15,7 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { IRequestUser } from 'src/auth/types/user';
 import { MapsService } from './maps.service';
 import { CreateMapDto } from './dto/map/create-map.dto';
-import { MapEventDto } from './dto/actions/map-event.dto';
+import { MapActionDto } from './dto/actions/map-event.dto';
 
 @ApiTags('Maps')
 @Controller({
@@ -54,25 +54,22 @@ export class MapsController {
     });
   }
 
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  // @ApiBearerAuth()
+  // @UseGuards(AuthGuard('jwt')) //TO-DO add privilige check
   @Get(':hash')
-  async getMapLogined(
-    @Request() request: IRequestUser,
-    @Param('hash') hash: string,
-  ) {
-    return await this.mapsService.getMapLogined(request.user, hash);
+  async getMap(@Request() request: IRequestUser, @Param('hash') hash: string) {
+    return await this.mapsService.findOne({ hash });
   }
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Post(':hash/event')
-  async createMapEvent(
+  async createMapAction(
     @Request() request: IRequestUser,
-    @Body() data: MapEventDto,
+    @Body() data: MapActionDto,
     @Param('hash') hash: string,
   ) {
-    return await this.mapsService.createMapEvent(request.user.hash, {
+    return await this.mapsService.createMapAction(request.user.hash, {
       ...data,
       mapHash: hash,
     });
@@ -81,10 +78,10 @@ export class MapsController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get(':hash/events')
-  async getMapEvent(
+  async getMapAction(
     @Request() request: IRequestUser,
     @Param('hash') hash: string,
   ) {
-    return await this.mapsService.getSelfMapEvents(request.user, hash);
+    return await this.mapsService.getSelfMapActions(request.user, hash);
   }
 }

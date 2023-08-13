@@ -8,13 +8,13 @@ import { AppLogger } from 'src/logger/app-logger.service';
 import { MapEntity } from './entities/map.entity';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { CreateMapDto } from './dto/map/create-map.dto';
-import { MapEvent } from './entities/map-event.entity';
+import { MapAction } from './entities/map-event.entity';
 import { Model } from 'mongoose';
-import { MapEventDto } from './dto/actions/map-event.dto';
-import { MapEventDB } from './dto/actions/map-event.db';
+import { MapActionDto } from './dto/actions/map-event.dto';
+import { MapActionDB } from './dto/actions/map-event.db';
 import { WsException } from '@nestjs/websockets';
-import { DropMapEventDto } from './dto/actions/drop-map-event.dto';
-import { ChangeMapEventDto } from './dto/actions/change-map-event.dto';
+import { DropMapActionDto } from './dto/actions/drop-map-event.dto';
+import { ChangeMapActionDto } from './dto/actions/change-map-event.dto';
 import { isLatLngAsObject } from 'src/utils/isLatLngAsObject';
 import { MapsPermissionsService } from './maps-permissions.service';
 import { createResponseErrorBody } from 'src/utils/createResponseErrorBody';
@@ -24,13 +24,14 @@ import { CreateMapParticipantDto } from './dto/participant/create-map-participan
 import { MapParticipantEntity } from './entities/map-participants.entity';
 import { UsersService } from 'src/users/users.service';
 import { MAP_PARTICIPANT_TYPE } from './types/map-participant.types';
+import { ParticipantMapPermissions } from './types/map-permissions.types';
 
 @Injectable()
 export class MapsService {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    @InjectModel(MapEvent.name)
-    private readonly mapEventModel: Model<MapEvent>,
+    @InjectModel(MapAction.name)
+    private readonly mapEventModel: Model<MapAction>,
     @InjectRepository(MapEntity)
     private readonly mapsRepository: Repository<MapEntity>,
     private readonly usersService: UsersService,
@@ -102,11 +103,11 @@ export class MapsService {
     });
   }
 
-  async createMapEvent(userHash: User['hash'], mapData: MapEventDto) {
+  async createMapAction(userHash: User['hash'], mapData: MapActionDto) {
     try {
       const { mapHash, type, coordinates, data } = mapData;
 
-      const mapEventData: MapEventDB = {
+      const mapEventData: MapActionDB = {
         creatorHash: userHash,
         mapHash,
         type,
@@ -135,12 +136,12 @@ export class MapsService {
     }
   }
 
-  async dropMapEvent(userHash: User['hash'], mapData: DropMapEventDto) {
+  async dropMapAction(userHash: User['hash'], mapData: DropMapActionDto) {
     try {
       // TO-DO Need to add permissions by user
       const { mapHash, hash } = mapData;
 
-      const mapEventData: Partial<MapEventDB> = {
+      const mapEventData: Partial<MapActionDB> = {
         status: -1,
         deletedAt: new Date(),
       };
@@ -162,11 +163,11 @@ export class MapsService {
     }
   }
 
-  async changeMapEvent(userHash: User['hash'], mapData: ChangeMapEventDto) {
+  async changeMapAction(userHash: User['hash'], mapData: ChangeMapActionDto) {
     try {
       // Types of payload and necessary fields already checked
 
-      const mapEventData: Partial<MapEventDB> = {};
+      const mapEventData: Partial<MapActionDB> = {};
 
       if (mapData.coordinates && isLatLngAsObject(mapData.coordinates)) {
         mapEventData.lat = mapData.coordinates.lat;
@@ -192,7 +193,7 @@ export class MapsService {
     }
   }
 
-  async getMapEvents(mapHash: string) {
+  async getMapActions(mapHash: string) {
     const mapEvents = await this.mapEventModel
       .find(
         {
@@ -211,7 +212,7 @@ export class MapsService {
     return mapEvents;
   }
 
-  async getSelfMapEvents(user: User, hash: string) {
+  async getSelfMapActions(user: User, hash: string) {
     const mapEvents = await this.mapEventModel
       .find(
         {
@@ -226,34 +227,47 @@ export class MapsService {
     return mapEvents;
   }
 
+  async getMapParticipantWithPermissisons(
+    userHash: string,
+    data: CreateMapParticipantDto,
+  ) {
+    const participant = await this.getMapParticipant(userHash, data);
+    const permissions = await this.getParticipantPermissions(
+      data.mapHash,
+      participant,
+    );
+    return [participant, permissions] as const;
+  }
+
   async getMapParticipant(
-    userHash: string | null,
+    participantHash: string,
     data: CreateMapParticipantDto,
   ) {
     // participantId - for unlogined users;
-    const { participantId, mapHash } = data;
+    const { mapHash } = data;
 
-    let mapParticipantCached: MapParticipantEntity | null = null;
-
-    if (userHash) {
-      mapParticipantCached = await this.cacheManager.get(
-        `map-participant.${mapHash}.${userHash}`,
+    const mapParticipantCached: MapParticipantEntity | null =
+      await this.cacheManager.get(
+        `map-participant.${mapHash}.${participantHash}`,
       );
-    } else if (participantId) {
-      mapParticipantCached = await this.cacheManager.get(
-        `map-participant.${mapHash}.${participantId}`,
-      );
-    }
 
     let mapParticipant: MapParticipantEntity | null = null;
 
     if (!mapParticipantCached) {
       const findOptions = {
         mapHash: mapHash,
-        ...(participantId ? { hash: participantId } : { userHash }),
+        hash: participantHash,
       };
 
       mapParticipant = await this.participantsService.findOne(findOptions);
+
+      if (mapParticipant) {
+        void this.cacheManager.set(
+          `map-participant.${mapHash}.${participantHash}`,
+          mapParticipant,
+          60 * 60 * 1000,
+        );
+      }
     } else {
       mapParticipant = mapParticipantCached;
     }
@@ -271,17 +285,17 @@ export class MapsService {
         mapHash: map.hash,
       };
 
-      if (userHash) {
-        const user = await this.usersService.findOne({
-          hash: userHash,
-        });
+      const user = await this.usersService.findOne({
+        hash: participantHash,
+      });
 
+      if (user) {
         participantData.name = `${user.firstName} + ${user.lastName}`;
         participantData.userHash = user.hash;
+      }
 
-        if (map.creator.hash === userHash) {
-          participantData.type = MAP_PARTICIPANT_TYPE.creator;
-        }
+      if (map.creator.hash === participantHash) {
+        participantData.type = MAP_PARTICIPANT_TYPE.creator;
       }
 
       const participant = await this.participantsService.createMapParticipant(
@@ -289,15 +303,18 @@ export class MapsService {
         participantData,
       );
 
-      await this.cacheManager.set(
-        `map-participant.${mapHash}.${userHash ? userHash : participant.hash}`,
+      void this.cacheManager.set(
+        `map-participant.${mapHash}.${participantHash}`,
         participant,
         60 * 60 * 1000,
-      );
+      ); // async set to cache
 
       return participant;
     } else {
-      if (mapParticipant.userHash && !userHash) {
+      if (
+        mapParticipant.userHash &&
+        participantHash !== mapParticipant.userHash
+      ) {
         throw new WsException(
           createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
         );
@@ -305,5 +322,95 @@ export class MapsService {
 
       return mapParticipant;
     }
+  }
+
+  async getParticipantPermissions(
+    mapHash: string,
+    participant: MapParticipantEntity,
+  ) {
+    let permissions = await this.permissionsService.findOne({
+      map: { hash: mapHash },
+    });
+
+    if (!permissions) {
+      const map = await this.findOne({ hash: mapHash });
+
+      if (!map) {
+        throw new WsException(
+          createResponseErrorBody(HttpStatus.NOT_FOUND, 'Map not found'),
+        );
+      }
+
+      permissions = await this.permissionsService.createMapPermissions(map);
+    }
+
+    let participantPermissions: ParticipantMapPermissions = {
+      view: false,
+      edit_actions: false,
+      drop_actions: false,
+      add_actions: false,
+      ban_participants: false,
+      invite_participants: false,
+      modify_participants: false,
+      set_permissions: false,
+      change_map_description: false,
+      change_map_properties: false,
+    };
+
+    // Banned participant
+    if (participant.status === -1) {
+      return participantPermissions;
+    }
+
+    // Participants who can view map TO-DO add lists of allowed users
+    if (permissions.anonymous_view) {
+      participantPermissions.view = true;
+    } else if (participant.userHash) {
+      participantPermissions.view = true;
+    }
+
+    if (participant.type >= MAP_PARTICIPANT_TYPE.editor) {
+      participantPermissions.add_actions = true;
+      participantPermissions.drop_actions = true;
+      participantPermissions.edit_actions = true;
+    }
+
+    if (participant.type >= MAP_PARTICIPANT_TYPE.moderator) {
+      participantPermissions.ban_participants = true;
+      participantPermissions.modify_participants = true;
+      participantPermissions.invite_participants = true;
+    }
+
+    if (participant.type >= MAP_PARTICIPANT_TYPE.admin) {
+      participantPermissions.change_map_description = true;
+      participantPermissions.change_map_properties = true;
+    }
+
+    if (participant.type >= MAP_PARTICIPANT_TYPE.creator) {
+      participantPermissions.set_permissions = true;
+    }
+
+    const specialPermissions =
+      this.extractParticipantSpecialPermissions(participant);
+
+    participantPermissions = {
+      ...participantPermissions,
+      ...specialPermissions,
+    };
+
+    return participantPermissions;
+  }
+
+  extractParticipantSpecialPermissions(participant: MapParticipantEntity) {
+    let specialPermissions: Omit<
+      Partial<ParticipantMapPermissions>,
+      'view'
+    > = {};
+
+    if (participant.special_permissions) {
+      specialPermissions = participant.special_permissions;
+    }
+
+    return specialPermissions;
   }
 }

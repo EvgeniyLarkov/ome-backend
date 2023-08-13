@@ -1,6 +1,6 @@
 import { mapActionTypes } from '../../types/map.types';
 
-export class MapEventDB {
+export class MapActionDB {
   hash?: string;
   type: mapActionTypes;
   status: number;

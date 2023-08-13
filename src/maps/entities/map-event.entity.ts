@@ -2,10 +2,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import getShortId from 'src/utils/short-id-generator';
 
-export type MapEventDocument = HydratedDocument<MapEvent>;
+export type MapActionDocument = HydratedDocument<MapAction>;
 
 @Schema()
-export class MapEvent {
+export class MapAction {
   @Prop({ index: true, unique: true, default: () => getShortId() })
   hash: string;
 
@@ -40,4 +40,4 @@ export class MapEvent {
   deletedAt?: Date;
 }
 
-export const MapEventSchema = SchemaFactory.createForClass(MapEvent);
+export const MapActionSchema = SchemaFactory.createForClass(MapAction);

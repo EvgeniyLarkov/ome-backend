@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
 import { mapActionTypes } from '../../types/map.types';
 
-export class MapEventDto {
+export class MapActionDto {
   @ApiProperty({ example: 'A4KF2kfD' })
   @IsNotEmpty()
   @MinLength(2)

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { FindOptionsWhere } from 'typeorm/find-options/FindOptionsWhere';
 import { AppLogger } from 'src/logger/app-logger.service';
 import { MapEntity } from './entities/map.entity';
-import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
+// import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 import { MapParticipantEntity } from './entities/map-participants.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -42,15 +42,15 @@ export class MapsParticipantsService {
     return dbParticipant;
   }
 
-  async changeMapParticpant(map: MapEntity, data: ChangeMapPermissionsDto) {
-    const permissionEntity = await this.mapsParticipantRepository.findOne({
-      where: {
-        mapHash: map.hash,
-      },
-    });
+  // async changeMapParticpant(map: MapEntity, data: ChangeMapPermissionsDto) {
+  //   const permissionEntity = await this.mapsParticipantRepository.findOne({
+  //     where: {
+  //       mapHash: map.hash,
+  //     },
+  //   });
 
-    const dataToSave = { ...permissionEntity, ...data };
+  //   const dataToSave = { ...permissionEntity, ...data };
 
-    return await this.mapsParticipantRepository.save(dataToSave);
-  }
+  //   return await this.mapsParticipantRepository.save(dataToSave);
+  // }
 }

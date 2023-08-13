@@ -9,3 +9,16 @@ export const MAP_EDIT_PERMISSIONS = {
 type MAP_EDIT_PERMISSIONS_KEYS = keyof typeof MAP_EDIT_PERMISSIONS;
 export type mapsEditPermissions =
   typeof MAP_EDIT_PERMISSIONS[MAP_EDIT_PERMISSIONS_KEYS];
+
+export type ParticipantMapPermissions = {
+  view: boolean;
+  edit_actions: boolean;
+  drop_actions: boolean;
+  add_actions: boolean;
+  ban_participants: boolean;
+  invite_participants: boolean;
+  modify_participants: boolean;
+  set_permissions: boolean;
+  change_map_description: boolean;
+  change_map_properties: boolean;
+};

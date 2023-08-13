@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, MaxLength, MinLength } from 'class-validator';
 
-export class DropMapEventDto {
+export class DropMapActionDto {
   @ApiProperty({ example: 'A4KF2kfD' })
   @IsNotEmpty()
   @MinLength(2)

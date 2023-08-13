@@ -22,10 +22,11 @@ import { SocketStateService } from 'src/sockets/sockets-state.service';
 import { SocketsGateway } from 'src/sockets/sockets.gateway';
 import { MapsService } from './maps.service';
 import { MAP_EVENTS } from './types/map.types';
-import { MapEventDto } from './dto/actions/map-event.dto';
-import { MapEvent } from './entities/map-event.entity';
-import { DropMapEventDto } from './dto/actions/drop-map-event.dto';
-import { ChangeMapEventDto } from './dto/actions/change-map-event.dto';
+import { MapActionDto } from './dto/actions/map-event.dto';
+import { DropMapActionDto } from './dto/actions/drop-map-event.dto';
+import { ChangeMapActionDto } from './dto/actions/change-map-event.dto';
+import { CreateMapParticipantDto } from './dto/participant/create-map-participant.dto';
+import { JoinMapResponseDTO } from './dto/map/join-map-response.dto';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -52,15 +53,30 @@ export class MapsGateway extends SocketsGateway {
 
   @SubscribeMessage(MAP_EVENTS.join_map)
   async joinMap(
-    @MessageBody() data: { mapHash: string },
+    @MessageBody() data: CreateMapParticipantDto,
     @ConnectedSocket() client: Socket,
-  ): Promise<WsResponse<MapEvent[]>> {
+  ): Promise<WsResponse<JoinMapResponseDTO>> {
     const userHash = this.socketService.getUserBySocketId(client.id);
+
+    const [participant, permissions] =
+      await this.mapsService.getMapParticipantWithPermissisons(userHash, data);
+
+    if (!permissions.view) {
+      return {
+        // TO-do
+        event: MAP_EVENTS.get_actions,
+        data: {
+          participant,
+          permissions,
+          actions: [],
+        },
+      };
+    }
 
     this.socketCoreService.joinRoom(client, data.mapHash);
 
     const response = {
-      userHash: userHash,
+      participant,
       room: data.mapHash,
     };
 
@@ -71,20 +87,23 @@ export class MapsGateway extends SocketsGateway {
       room: data.mapHash,
     });
 
-    const mapData = await this.mapsService.getMapEvents(data.mapHash);
+    const mapData = await this.mapsService.getMapActions(data.mapHash);
 
-    return { event: MAP_EVENTS.get_actions, data: mapData };
+    return {
+      event: MAP_EVENTS.get_actions,
+      data: { actions: mapData, participant, permissions },
+    };
   }
 
   @SubscribeMessage(MAP_EVENTS.new_action)
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleNewMapEvent(
-    @MessageBody() data: MapEventDto,
+  async handleNewMapAction(
+    @MessageBody() data: MapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
     const userHash = this.socketService.getUserBySocketId(client.id);
 
-    const response = await this.mapsService.createMapEvent(userHash, data);
+    const response = await this.mapsService.createMapAction(userHash, data);
 
     //TO-DO sanitize sending data
     this.sendRoomMessage(this.server, {
@@ -96,13 +115,13 @@ export class MapsGateway extends SocketsGateway {
 
   @SubscribeMessage(MAP_EVENTS.drop_action)
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleDropMapEvent(
-    @MessageBody() data: DropMapEventDto,
+  async handleDropMapAction(
+    @MessageBody() data: DropMapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
     const userHash = this.socketService.getUserBySocketId(client.id);
 
-    const response = await this.mapsService.dropMapEvent(userHash, data);
+    const response = await this.mapsService.dropMapAction(userHash, data);
 
     //TO-DO sanitize sending data
     this.sendRoomMessage(this.server, {
@@ -114,13 +133,13 @@ export class MapsGateway extends SocketsGateway {
 
   @SubscribeMessage(MAP_EVENTS.change_action)
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleChangeMapEvent(
-    @MessageBody() data: ChangeMapEventDto,
+  async handleChangeMapAction(
+    @MessageBody() data: ChangeMapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
     const userHash = this.socketService.getUserBySocketId(client.id);
 
-    const response = await this.mapsService.changeMapEvent(userHash, data);
+    const response = await this.mapsService.changeMapAction(userHash, data);
 
     //TO-DO sanitize sending data
     this.sendRoomMessage(this.server, {
