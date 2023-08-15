@@ -27,6 +27,8 @@ import { DropMapActionDto } from './dto/actions/drop-map-event.dto';
 import { ChangeMapActionDto } from './dto/actions/change-map-event.dto';
 import { CreateMapParticipantDto } from './dto/participant/create-map-participant.dto';
 import { JoinMapResponseDTO } from './dto/map/join-map-response.dto';
+import { UseFilters } from '@discord-nestjs/core';
+import { WebsocketExceptionsFilter } from 'src/sockets/ws-exceptions.filter';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -35,6 +37,7 @@ import { JoinMapResponseDTO } from './dto/map/join-map-response.dto';
   },
   namespace: 'maps',
 })
+@UseFilters(WebsocketExceptionsFilter)
 @UseInterceptors(ClassSerializerInterceptor)
 export class MapsGateway extends SocketsGateway {
   constructor(
@@ -66,8 +69,6 @@ export class MapsGateway extends SocketsGateway {
         // TO-do
         event: MAP_EVENTS.get_actions,
         data: {
-          participant,
-          permissions,
           actions: [],
         },
       };
@@ -87,11 +88,11 @@ export class MapsGateway extends SocketsGateway {
       room: data.mapHash,
     });
 
-    const mapData = await this.mapsService.getMapActions(data.mapHash);
+    const actions = await this.mapsService.getMapActions(data.mapHash);
 
     return {
       event: MAP_EVENTS.get_actions,
-      data: { actions: mapData, participant, permissions },
+      data: { actions },
     };
   }
 

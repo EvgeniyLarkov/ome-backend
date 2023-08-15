@@ -9,6 +9,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   Param,
+  Headers,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -16,6 +17,7 @@ import { IRequestUser } from 'src/auth/types/user';
 import { MapsService } from './maps.service';
 import { CreateMapDto } from './dto/map/create-map.dto';
 import { MapActionDto } from './dto/actions/map-event.dto';
+import { connectToMapDTO } from './dto/map/join-map-response.dto';
 
 @ApiTags('Maps')
 @Controller({
@@ -59,6 +61,38 @@ export class MapsController {
   @Get(':hash')
   async getMap(@Request() request: IRequestUser, @Param('hash') hash: string) {
     return await this.mapsService.findOne({ hash });
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('/connect/logined/:hash')
+  async connectToMapLogined(
+    @Request() request: IRequestUser,
+    @Param('hash') hash: string,
+  ): Promise<connectToMapDTO> {
+    const userHash = request.user.hash;
+
+    const [participant, permissions, map] =
+      await this.mapsService.getMapParticipantWithPermissisons(userHash, {
+        mapHash: hash,
+      });
+
+    return { participant, permissions, map };
+  }
+
+  @Post('/connect/unlogined/:hash')
+  async connectToMapUnlogined(
+    @Headers('anonymous-id') anonId: string | null,
+    @Param('hash') hash: string,
+  ): Promise<connectToMapDTO> {
+    const userHash = anonId;
+
+    const [participant, permissions, map] =
+      await this.mapsService.getMapParticipantWithPermissisons(userHash, {
+        mapHash: hash,
+      });
+
+    return { participant, permissions, map };
   }
 
   @ApiBearerAuth()

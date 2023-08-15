@@ -231,12 +231,12 @@ export class MapsService {
     userHash: string,
     data: CreateMapParticipantDto,
   ) {
-    const participant = await this.getMapParticipant(userHash, data);
+    const [participant, map] = await this.getMapParticipant(userHash, data);
     const permissions = await this.getParticipantPermissions(
       data.mapHash,
       participant,
     );
-    return [participant, permissions] as const;
+    return [participant, permissions, map] as const;
   }
 
   async getMapParticipant(
@@ -309,7 +309,7 @@ export class MapsService {
         60 * 60 * 1000,
       ); // async set to cache
 
-      return participant;
+      return [participant, map] as const;
     } else {
       if (
         mapParticipant.userHash &&
@@ -320,7 +320,7 @@ export class MapsService {
         );
       }
 
-      return mapParticipant;
+      return [mapParticipant, map] as const;
     }
   }
 
