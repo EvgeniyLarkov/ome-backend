@@ -1,4 +1,10 @@
-import { CACHE_MANAGER, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import {
+  CACHE_MANAGER,
+  HttpStatus,
+  Inject,
+  Injectable,
+  HttpException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectModel } from '@nestjs/mongoose';
 import { Repository } from 'typeorm';
@@ -25,6 +31,7 @@ import { MapParticipantEntity } from './entities/map-participants.entity';
 import { UsersService } from 'src/users/users.service';
 import { MAP_PARTICIPANT_TYPE } from './types/map-participant.types';
 import { ParticipantMapPermissions } from './types/map-permissions.types';
+import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
 
 @Injectable()
 export class MapsService {
@@ -227,11 +234,103 @@ export class MapsService {
     return mapEvents;
   }
 
+  async changeMapParticipant(
+    participantHash: string,
+    editorData: {
+      userHash?: string | undefined;
+      participantHash?: string | undefined;
+    },
+    data: ChangeMapParticipantDto,
+  ) {
+    const participant = await this.participantsService.findOne({
+      participantHash,
+    });
+
+    if (!participant) {
+      throw new HttpException(
+        createResponseErrorBody(
+          HttpStatus.NOT_FOUND,
+          'Participant does not exist',
+        ),
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const [editorParticipant, permissions, map] =
+      await this.getMapParticipantWithPermissisons(editorData, {
+        mapHash: data.mapHash,
+      });
+
+    let canChangeProperties = true;
+
+    if (data.name) {
+      if (
+        !permissions.modify_participants &&
+        editorParticipant.participantHash !== participant.participantHash
+      ) {
+        canChangeProperties = false;
+      }
+    }
+
+    if (data.status) {
+      if (!permissions.ban_participants) {
+        canChangeProperties = false;
+      } else if (
+        participant.participantHash === editorParticipant.participantHash
+      ) {
+        canChangeProperties = false;
+      }
+    }
+
+    if (data.type) {
+      if (!permissions.set_permissions) {
+        canChangeProperties = false;
+      } else if (data.type >= editorParticipant.type) {
+        canChangeProperties = false;
+      } else if (
+        participant.participantHash === editorParticipant.participantHash
+      ) {
+        canChangeProperties = false;
+      }
+    }
+
+    if (data.special_permissions) {
+      if (!permissions.set_permissions) {
+        canChangeProperties = false;
+      } else if (
+        participant.participantHash === editorParticipant.participantHash
+      ) {
+        canChangeProperties = false;
+      }
+    }
+
+    if (!canChangeProperties) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const result = await this.participantsService.changeMapParticpant(
+      map,
+      participant.participantHash,
+      data,
+    );
+
+    return result;
+  }
+
   async getMapParticipantWithPermissisons(
-    userHash: string,
+    participantData: {
+      userHash?: string;
+      participantHash?: string;
+    },
     data: CreateMapParticipantDto,
   ) {
-    const [participant, map] = await this.getMapParticipant(userHash, data);
+    const [participant, map] = await this.getMapParticipant(
+      participantData,
+      data,
+    );
     const permissions = await this.getParticipantPermissions(
       data.mapHash,
       participant,
@@ -240,30 +339,52 @@ export class MapsService {
   }
 
   async getMapParticipant(
-    participantHash: string,
+    participantData: {
+      userHash?: string | undefined;
+      participantHash?: string | undefined;
+    },
     data: CreateMapParticipantDto,
   ) {
     // participantId - for unlogined users;
     const { mapHash } = data;
 
-    const mapParticipantCached: MapParticipantEntity | null =
-      await this.cacheManager.get(
+    const { userHash, participantHash } = participantData;
+
+    if (!userHash && !participantHash) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.BAD_REQUEST, 'Provide data'),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    let mapParticipantCached: MapParticipantEntity | undefined;
+
+    if (participantHash) {
+      mapParticipantCached = await this.cacheManager.get(
         `map-participant.${mapHash}.${participantHash}`,
       );
+    }
 
     let mapParticipant: MapParticipantEntity | null = null;
 
     if (!mapParticipantCached) {
-      const findOptions = {
+      const findOptions: FindOptionsWhere<MapParticipantEntity> = {
         mapHash: mapHash,
-        hash: participantHash,
       };
+
+      if (participantHash) {
+        findOptions.participantHash = participantHash;
+      }
+
+      if (userHash) {
+        findOptions.userHash = userHash;
+      }
 
       mapParticipant = await this.participantsService.findOne(findOptions);
 
       if (mapParticipant) {
         void this.cacheManager.set(
-          `map-participant.${mapHash}.${participantHash}`,
+          `map-participant.${mapHash}.${mapParticipant.participantHash}`,
           mapParticipant,
           60 * 60 * 1000,
         );
@@ -275,8 +396,9 @@ export class MapsService {
     const map = await this.findOne({ hash: mapHash });
 
     if (!map) {
-      throw new WsException(
+      throw new HttpException(
         createResponseErrorBody(HttpStatus.NOT_FOUND, 'Map does not exist'),
+        HttpStatus.NOT_FOUND,
       );
     }
 
@@ -286,16 +408,18 @@ export class MapsService {
       };
 
       const user = await this.usersService.findOne({
-        hash: participantHash,
+        hash: userHash,
       });
 
       if (user) {
         participantData.name = `${user.firstName} + ${user.lastName}`;
         participantData.userHash = user.hash;
-      }
 
-      if (map.creator.hash === participantHash) {
-        participantData.type = MAP_PARTICIPANT_TYPE.creator;
+        if (map.creator.hash === userHash) {
+          participantData.type = MAP_PARTICIPANT_TYPE.creator;
+        }
+      } else {
+        participantData.participantHash = participantHash;
       }
 
       const participant = await this.participantsService.createMapParticipant(
@@ -312,11 +436,13 @@ export class MapsService {
       return [participant, map] as const;
     } else {
       if (
+        userHash &&
         mapParticipant.userHash &&
-        participantHash !== mapParticipant.userHash
+        userHash !== mapParticipant.userHash
       ) {
-        throw new WsException(
+        throw new HttpException(
           createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
+          HttpStatus.FORBIDDEN,
         );
       }
 

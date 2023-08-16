@@ -5,6 +5,7 @@ import {
   UseInterceptors,
   UsePipes,
   ValidationPipe,
+  SerializeOptions,
 } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { ApiTags } from '@nestjs/swagger';
@@ -29,6 +30,7 @@ import { CreateMapParticipantDto } from './dto/participant/create-map-participan
 import { JoinMapResponseDTO } from './dto/map/join-map-response.dto';
 import { UseFilters } from '@discord-nestjs/core';
 import { WebsocketExceptionsFilter } from 'src/sockets/ws-exceptions.filter';
+import { InterceptorForClassSerializer } from 'src/shared/interceptors/class-serializer';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -38,7 +40,10 @@ import { WebsocketExceptionsFilter } from 'src/sockets/ws-exceptions.filter';
   namespace: 'maps',
 })
 @UseFilters(WebsocketExceptionsFilter)
-@UseInterceptors(ClassSerializerInterceptor)
+@SerializeOptions({
+  excludePrefixes: ['_id', '__v'],
+})
+@UseInterceptors(ClassSerializerInterceptor, InterceptorForClassSerializer)
 export class MapsGateway extends SocketsGateway {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -62,7 +67,10 @@ export class MapsGateway extends SocketsGateway {
     const userHash = this.socketService.getUserBySocketId(client.id);
 
     const [participant, permissions] =
-      await this.mapsService.getMapParticipantWithPermissisons(userHash, data);
+      await this.mapsService.getMapParticipantWithPermissisons(
+        { userHash },
+        data,
+      );
 
     if (!permissions.view) {
       return {
@@ -97,7 +105,6 @@ export class MapsGateway extends SocketsGateway {
   }
 
   @SubscribeMessage(MAP_EVENTS.new_action)
-  @UsePipes(new ValidationPipe({ transform: true }))
   async handleNewMapAction(
     @MessageBody() data: MapActionDto,
     @ConnectedSocket() client: Socket,
@@ -115,7 +122,6 @@ export class MapsGateway extends SocketsGateway {
   }
 
   @SubscribeMessage(MAP_EVENTS.drop_action)
-  @UsePipes(new ValidationPipe({ transform: true }))
   async handleDropMapAction(
     @MessageBody() data: DropMapActionDto,
     @ConnectedSocket() client: Socket,

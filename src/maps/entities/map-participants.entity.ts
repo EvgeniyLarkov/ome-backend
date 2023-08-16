@@ -18,6 +18,9 @@ export class MapParticipantEntity {
   @Prop({ required: true, index: true })
   mapHash: string;
 
+  @Prop({ index: true, default: () => getShortId() })
+  participantHash: string;
+
   @Prop({ index: true, default: null })
   userHash: string | null;
 
@@ -43,5 +46,9 @@ export class MapParticipantEntity {
   deletedAt?: Date;
 }
 
-export const MapParticipantSchema =
-  SchemaFactory.createForClass(MapParticipantEntity);
+const MPSchema = SchemaFactory.createForClass(MapParticipantEntity);
+
+MPSchema.index({ mapHash: 1, participantHash: 1 }, { unique: true });
+MPSchema.index({ mapHash: 1, userHash: 1 }, { unique: true });
+
+export const MapParticipantSchema = MPSchema;

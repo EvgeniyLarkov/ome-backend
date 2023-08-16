@@ -6,6 +6,7 @@ import { MapEntity } from './entities/map.entity';
 import { MapParticipantEntity } from './entities/map-participants.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
 
 @Injectable()
 export class MapsParticipantsService {
@@ -42,15 +43,18 @@ export class MapsParticipantsService {
     return dbParticipant;
   }
 
-  // async changeMapParticpant(map: MapEntity, data: ChangeMapPermissionsDto) {
-  //   const permissionEntity = await this.mapsParticipantRepository.findOne({
-  //     where: {
-  //       mapHash: map.hash,
-  //     },
-  //   });
-
-  //   const dataToSave = { ...permissionEntity, ...data };
-
-  //   return await this.mapsParticipantRepository.save(dataToSave);
-  // }
+  async changeMapParticpant(
+    map: MapEntity,
+    participantHash: string,
+    data: ChangeMapParticipantDto,
+  ) {
+    return await this.mapParticipantModel.findOneAndUpdate(
+      {
+        mapHash: map.hash,
+        participantHash,
+      },
+      data,
+      { returnDocument: 'after' },
+    );
+  }
 }

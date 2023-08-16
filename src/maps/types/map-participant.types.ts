@@ -1,9 +1,9 @@
 export const MAP_PARTICIPANT_TYPE = {
   viewer: 0,
-  editor: 1,
-  moderator: 2,
-  creator: 3,
-  admin: 4,
+  editor: 10,
+  moderator: 20,
+  admin: 30,
+  creator: 40,
 } as const;
 
 type MAP_PARTICIPANT_TYPE_KEYS = keyof typeof MAP_PARTICIPANT_TYPE;
