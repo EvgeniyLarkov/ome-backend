@@ -32,6 +32,9 @@ import { UsersService } from 'src/users/users.service';
 import { MAP_PARTICIPANT_TYPE } from './types/map-participant.types';
 import { ParticipantMapPermissions } from './types/map-permissions.types';
 import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
+import { ChangeMapDto } from './dto/map/change-map.dto';
+import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
+import { MapPermissionEntity } from './entities/map-permissions.entity';
 
 @Injectable()
 export class MapsService {
@@ -101,6 +104,33 @@ export class MapsService {
     await this.permissionsService.createMapPermissions(map);
 
     return map;
+  }
+
+  async changeMap(
+    editorData: {
+      userHash?: string | undefined;
+      participantHash?: string | undefined;
+    },
+    mapHash: string,
+    data: ChangeMapDto,
+  ): Promise<MapEntity> {
+    const [, permissions, map] = await this.getMapParticipantWithPermissisons(
+      editorData,
+      {
+        mapHash: mapHash,
+      },
+    );
+
+    if (!permissions.change_map_description) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    void (await this.mapsRepository.update({ hash: map.hash }, data));
+
+    return await this.findOne({ hash: map.hash });
   }
 
   async getMapLogined(user: User, hash: string) {
@@ -318,6 +348,55 @@ export class MapsService {
     );
 
     return result;
+  }
+
+  async getMapPermissions(
+    participantData: {
+      userHash?: string;
+      participantHash?: string;
+    },
+    mapHash: string,
+  ) {
+    const [, permissions, map] = await this.getMapParticipantWithPermissisons(
+      participantData,
+      {
+        mapHash,
+      },
+    );
+
+    if (!permissions.change_map_properties) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    return await this.permissionsService.findOne({ map: { hash: map.hash } });
+  }
+
+  async changeMapPermissions(
+    editorData: {
+      userHash?: string | undefined;
+      participantHash?: string | undefined;
+    },
+    mapHash: string,
+    data: ChangeMapPermissionsDto,
+  ): Promise<MapPermissionEntity> {
+    const [, permissions, map] = await this.getMapParticipantWithPermissisons(
+      editorData,
+      {
+        mapHash: mapHash,
+      },
+    );
+
+    if (!permissions.change_map_properties) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    return await this.permissionsService.changePermissions(map, data);
   }
 
   async getMapParticipantWithPermissisons(

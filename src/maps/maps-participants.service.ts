@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { FindOptionsWhere } from 'typeorm/find-options/FindOptionsWhere';
 import { AppLogger } from 'src/logger/app-logger.service';
 import { MapEntity } from './entities/map.entity';
-// import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 import { MapParticipantEntity } from './entities/map-participants.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';

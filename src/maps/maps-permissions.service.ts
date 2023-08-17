@@ -37,15 +37,31 @@ export class MapsPermissionsService {
     return permissions;
   }
 
-  async changeMapPermissions(map: MapEntity, data: ChangeMapPermissionsDto) {
-    const permissionEntity = await this.mapsPermissionRepository.findOne({
-      where: {
-        mapHash: map.hash,
-      },
+  async changePermissions(map: MapEntity, data: ChangeMapPermissionsDto) {
+    const Permissions = await this.findOne({
+      map: { hash: map.hash },
     });
 
-    const dataToSave = { ...permissionEntity, ...data };
+    const result = await this.mapsPermissionRepository.save({
+      ...Permissions,
+      ...data,
+    });
 
-    return await this.mapsPermissionRepository.save(dataToSave);
+    return result;
+  }
+
+  async changeExistedPermissions(
+    permissions: MapPermissionEntity,
+    data: ChangeMapPermissionsDto,
+  ) {
+    void (await this.mapsPermissionRepository
+      .createQueryBuilder()
+      .update(permissions)
+      .set(data)
+      .execute());
+
+    return await this.findOne({
+      hash: permissions.hash,
+    });
   }
 }

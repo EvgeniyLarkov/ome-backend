@@ -24,6 +24,8 @@ import { MapActionDto } from './dto/actions/map-event.dto';
 import { connectToMapDTO } from './dto/map/join-map-response.dto';
 import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
 import { InterceptorForClassSerializer } from 'src/shared/interceptors/class-serializer';
+import { ChangeMapDto } from './dto/map/change-map.dto';
+import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 
 @ApiTags('Maps')
 @Controller({
@@ -71,6 +73,30 @@ export class MapsController {
   @Get(':hash')
   async getMap(@Request() request: IRequestUser, @Param('hash') hash: string) {
     return await this.mapsService.findOne({ hash });
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':hash/logined')
+  async changeMapLogined(
+    @Request() request: IRequestUser,
+    @Param('hash') mapHash: string,
+    @Body() data: ChangeMapDto,
+  ) {
+    const userHash = request.user.hash;
+
+    return await this.mapsService.changeMap({ userHash }, mapHash, data);
+  }
+
+  @Patch(':hash')
+  async changeMapUnlogined(
+    @Headers('anonymous-id') anonId: string,
+    @Param('hash') mapHash: string,
+    @Body() data: ChangeMapDto,
+  ) {
+    const participantHash = anonId;
+
+    return await this.mapsService.changeMap({ participantHash }, mapHash, data);
   }
 
   @ApiBearerAuth()
@@ -139,6 +165,70 @@ export class MapsController {
     const result = await this.mapsService.changeMapParticipant(
       participantHash,
       { participantHash: anonId },
+      data,
+    );
+
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('/permissions/:hash/logined')
+  async getMapPermissionsLogined(
+    @Request() request: IRequestUser,
+    @Param('hash') mapHash: string,
+  ) {
+    const userHash = request.user.hash;
+
+    const result = await this.mapsService.getMapPermissions(
+      { userHash },
+      mapHash,
+    );
+
+    return result;
+  }
+
+  @Get('/permissions/:hash')
+  async getMapPermissionsUnlogined(
+    @Headers('anonymous-id') anonId: string | null,
+    @Param('hash') mapHash: string,
+  ) {
+    const result = await this.mapsService.getMapPermissions(
+      { participantHash: anonId },
+      mapHash,
+    );
+
+    return result;
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('/permissions/:hash/logined')
+  async changeMapPermissionsLogined(
+    @Request() request: IRequestUser,
+    @Param('hash') mapHash: string,
+    @Body() data: ChangeMapPermissionsDto,
+  ) {
+    const userHash = request.user.hash;
+
+    const result = await this.mapsService.changeMapPermissions(
+      { userHash },
+      mapHash,
+      data,
+    );
+
+    return result;
+  }
+
+  @Patch('/permissions/:hash')
+  async changeMapPermissionsUnlogined(
+    @Headers('anonymous-id') anonId: string | null,
+    @Param('hash') mapHash: string,
+    @Body() data: ChangeMapPermissionsDto,
+  ) {
+    const result = await this.mapsService.changeMapPermissions(
+      { participantHash: anonId },
+      mapHash,
       data,
     );
 
