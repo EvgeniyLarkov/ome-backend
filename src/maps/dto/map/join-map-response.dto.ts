@@ -4,6 +4,7 @@ import { MapEntity } from 'src/maps/entities/map.entity';
 import { ParticipantMapPermissions } from 'src/maps/types/map-permissions.types';
 
 export type JoinMapResponseDTO = {
+  mapHash: string;
   actions: MapAction[];
   participants: MapParticipantEntity[];
 };

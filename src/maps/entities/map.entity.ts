@@ -17,6 +17,7 @@ import {
 import { FileEntity } from '../../files/entities/file.entity';
 import { IsNotEmpty } from 'class-validator';
 import { User } from 'src/users/entities/user.entity';
+import { MAP_STATUSES, mapStatuses } from '../types/map.types';
 
 @Entity({ name: 'map' })
 export class MapEntity extends EntityHelper {
@@ -45,8 +46,8 @@ export class MapEntity extends EntityHelper {
   @Column({ nullable: false, type: 'boolean', default: false })
   hidden: boolean;
 
-  @Column({ nullable: false, type: 'smallint', default: 0 })
-  status: 0;
+  @Column({ nullable: false, type: 'smallint', default: MAP_STATUSES.default })
+  status: mapStatuses;
 
   @ManyToOne(() => User) // TO-DO
   @JoinColumn()

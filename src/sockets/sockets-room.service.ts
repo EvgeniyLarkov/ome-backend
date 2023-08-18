@@ -63,7 +63,7 @@ export class SocketRoomService {
     const room = this.sidToRooms.get(sid);
 
     if (room) {
-      room.delete(sid);
+      room.delete(roomHash);
     }
 
     /////////////////////////
@@ -83,14 +83,16 @@ export class SocketRoomService {
 
     [...activeSids].forEach((activeSid) => {
       const thisRooms = this.sidToRooms.get(activeSid);
-      if (thisRooms.has(roomHash)) {
+      if (thisRooms && thisRooms.has(roomHash)) {
         needToDropFromRoom = false;
       }
     });
 
     if (needToDropFromRoom) {
       const roomPList = this.roomIdToPhash.get(roomHash);
-      roomPList.delete(participantHash);
+      if (roomPList) {
+        roomPList.delete(participantHash);
+      }
     }
 
     return true;
@@ -103,25 +105,30 @@ export class SocketRoomService {
     this.sidToPhash.delete(sid);
 
     const participantSids = this.phashToSockets.get(participantHash);
-    participantSids.delete(sid);
+    if (participantSids) {
+      participantSids.delete(sid);
+    }
+
     const activeParticipantSid = this.phashToSockets.get(participantHash);
 
     const participantRooms = this.sidToRooms.get(sid);
 
-    [...participantRooms.keys()].forEach((roomHash) => {
-      const room = this.roomIdToPhash.get(roomHash);
+    if (participantRooms) {
+      [...participantRooms.keys()].forEach((roomHash) => {
+        const room = this.roomIdToPhash.get(roomHash);
 
-      let dropPHashFromRoom = true;
-      [...activeParticipantSid.keys()].forEach((sid) => {
-        if (room.has(sid)) {
-          dropPHashFromRoom = false;
+        let dropPHashFromRoom = true;
+        [...activeParticipantSid.keys()].forEach((sid) => {
+          if (room && room.has(sid)) {
+            dropPHashFromRoom = false;
+          }
+        });
+
+        if (dropPHashFromRoom && room) {
+          room.delete(participantHash);
         }
       });
-
-      if (dropPHashFromRoom) {
-        room.delete(participantHash);
-      }
-    });
+    }
 
     this.sidToRooms.delete(sid);
 

@@ -79,8 +79,9 @@ export class MapsGateway extends SocketsGateway {
     if (!permissions.view) {
       return {
         // TO-do
-        event: MAP_EVENTS.get_actions,
+        event: MAP_EVENTS.join_map,
         data: {
+          mapHash: data.mapHash,
           actions: [],
           participants: [],
         },
@@ -97,7 +98,7 @@ export class MapsGateway extends SocketsGateway {
     //TO-DO sanitize sending data
     this.sendRoomMessage({
       message: response,
-      event: MAP_EVENTS.join_map,
+      event: MAP_EVENTS.participant_join,
       room: data.mapHash,
     });
 
@@ -113,8 +114,12 @@ export class MapsGateway extends SocketsGateway {
     );
 
     return {
-      event: MAP_EVENTS.get_actions,
-      data: { actions, participants: activeParticipants },
+      event: MAP_EVENTS.join_map,
+      data: {
+        mapHash: data.mapHash,
+        actions,
+        participants: activeParticipants,
+      },
     };
   }
 
@@ -133,7 +138,7 @@ export class MapsGateway extends SocketsGateway {
 
     this.sendRoomMessage({
       message: { participantHash },
-      event: MAP_EVENTS.leave_map,
+      event: MAP_EVENTS.participant_leave,
       room: data.mapHash,
     });
 

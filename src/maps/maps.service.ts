@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectModel } from '@nestjs/mongoose';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { FindOptionsWhere } from 'typeorm/find-options/FindOptionsWhere';
 import { AppLogger } from 'src/logger/app-logger.service';
@@ -36,6 +36,7 @@ import { ChangeMapDto } from './dto/map/change-map.dto';
 import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 import { MapPermissionEntity } from './entities/map-permissions.entity';
 import { hoursToMilliseconds } from 'src/utils/hoursToMilliseconds';
+import { MAP_STATUSES } from './types/map.types';
 
 @Injectable()
 export class MapsService {
@@ -165,6 +166,27 @@ export class MapsService {
     });
   }
 
+  async dropMap(userHash: string, mapHash: string) {
+    const [, permissions, map] = await this.getMapParticipantWithPermissisons(
+      { userHash },
+      { mapHash },
+    );
+
+    if (!permissions.change_map_properties) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.FORBIDDEN, 'Access denied'),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    void this.mapsRepository.update(
+      { hash: map.hash },
+      { status: MAP_STATUSES.deleted },
+    );
+
+    return true;
+  }
+
   findManyWithPagination(
     fields: FindOptionsWhere<MapEntity>,
     paginationOptions: IPaginationOptions,
@@ -181,12 +203,15 @@ export class MapsService {
     userId: number,
     paginationOptions: IPaginationOptions,
   ) {
-    const maps = await this.findManyWithPagination(
-      { creator: { id: userId } },
-      paginationOptions,
-    );
-
-    return maps;
+    return await this.mapsRepository.find({
+      skip: (paginationOptions.page - 1) * paginationOptions.limit,
+      take: paginationOptions.limit,
+      where: { creator: { id: userId }, status: MoreThanOrEqual(0) },
+      order: {
+        createdAt: 'desc',
+      },
+      relations: ['creator'],
+    });
   }
 
   async createMap(user: User, data: CreateMapDto) {

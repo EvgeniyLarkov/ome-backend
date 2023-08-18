@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   UseGuards,
   Request,
   Body,
@@ -73,6 +74,18 @@ export class MapsController {
   @Get(':hash')
   async getMap(@Request() request: IRequestUser, @Param('hash') hash: string) {
     return await this.mapsService.findOne({ hash });
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':hash/logined')
+  async deleteMapLogined(
+    @Request() request: IRequestUser,
+    @Param('hash') mapHash: string,
+  ) {
+    const userHash = request.user.hash;
+
+    return await this.mapsService.dropMap(userHash, mapHash);
   }
 
   @ApiBearerAuth()
