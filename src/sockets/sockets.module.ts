@@ -5,6 +5,7 @@ import { UsersModule } from 'src/users/users.module';
 import { SocketCoreService } from './sockets-core.service';
 import { SocketStateService } from './sockets-state.service';
 import { SocketsGateway } from './sockets.gateway';
+import { SocketRoomService } from './sockets-room.service';
 
 @Module({
   imports: [
@@ -21,8 +22,18 @@ import { SocketsGateway } from './sockets.gateway';
       }),
     }),
   ],
-  providers: [SocketStateService, SocketCoreService, SocketsGateway],
+  providers: [
+    SocketStateService,
+    SocketCoreService,
+    SocketRoomService,
+    SocketsGateway,
+  ],
   controllers: [],
-  exports: [SocketsGateway, SocketStateService, SocketCoreService],
+  exports: [
+    SocketsGateway,
+    SocketStateService,
+    SocketCoreService,
+    SocketRoomService,
+  ],
 })
 export class SocketModule {}

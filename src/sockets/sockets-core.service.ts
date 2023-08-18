@@ -10,6 +10,7 @@ import serializeResponse from 'src/utils/ws-response-serializer';
 import { SocketStateService } from './sockets-state.service';
 import getShortId from 'src/utils/short-id-generator';
 import { SOCKET_SERVICE_EVENTS, onConnectedResponseDTO } from './socket.types';
+import { SocketRoomService } from './sockets-room.service';
 
 export type IWsResponseData<T> =
   | IWsResponseDataToUser<T>
@@ -32,6 +33,7 @@ export class SocketCoreService {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly socketService: SocketStateService,
+    private readonly socketRoomService: SocketRoomService,
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly logger: AppLogger,
@@ -93,11 +95,6 @@ export class SocketCoreService {
     } catch (err) {
       this.logger.error('ws send error: ', err);
     }
-  }
-
-  public joinRoom(client: Socket, roomHash: string) {
-    void client.join(roomHash);
-    this.logger.log(`Client join room: ${roomHash}`);
   }
 
   async handleConnection(client: Socket) {
@@ -173,8 +170,25 @@ export class SocketCoreService {
     }
   }
 
+  public joinRoom(client: Socket, roomHash: string, participantHash: string) {
+    this.socketRoomService.join(participantHash, roomHash, client);
+    void client.join(roomHash);
+    this.logger.log(`Client join room: ${roomHash}`);
+  }
+
+  public leaveRoom(client: Socket, roomHash: string, participantHash: string) {
+    this.socketRoomService.leave(participantHash, roomHash, client);
+    void client.leave(roomHash);
+    this.logger.log(`Client leave room: ${roomHash}`);
+  }
+
+  public getRoomParticipants(roomHash: string) {
+    return this.socketRoomService.getRoomParticipants(roomHash);
+  }
+
   async handleDisconnect(client: Socket) {
     try {
+      this.socketRoomService.disconnect(client);
       const token = this.getTokenFromClient(client);
 
       if (token) {

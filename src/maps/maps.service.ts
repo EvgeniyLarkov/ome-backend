@@ -35,9 +35,12 @@ import { ChangeMapParticipantDto } from './dto/participant/change-map-participan
 import { ChangeMapDto } from './dto/map/change-map.dto';
 import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 import { MapPermissionEntity } from './entities/map-permissions.entity';
+import { hoursToMilliseconds } from 'src/utils/hoursToMilliseconds';
 
 @Injectable()
 export class MapsService {
+  USER_HASH_TO_MAP_PARTICIPANT_TTL = hoursToMilliseconds(24);
+
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     @InjectModel(MapAction.name)
@@ -52,7 +55,110 @@ export class MapsService {
     this.logger.setContext('MapsService');
   }
 
+  private getCachedParticipantHashFromUserHash(
+    userHash: string,
+    mapHash: string,
+  ): Promise<string | null> {
+    return this.cacheManager.get(
+      `user-hash-to-map-participant-hash.${mapHash}.${userHash}`,
+    );
+  }
+
+  private setCachedParticipantHashFromUserHash(
+    userHash: string,
+    mapHash: string,
+    participantHash: string,
+  ): Promise<void> {
+    return this.cacheManager.set(
+      `user-hash-to-map-participant-hash.${mapHash}.${userHash}`,
+      participantHash,
+      this.USER_HASH_TO_MAP_PARTICIPANT_TTL,
+    );
+  }
+
+  async getMapParticipantFromUser(userHash: string, mapHash: string) {
+    const cachedHash = await this.getCachedParticipantHashFromUserHash(
+      userHash,
+      mapHash,
+    );
+
+    if (cachedHash) {
+      this.logger.log(`Get participant hash from cache to user ${userHash}`);
+      return cachedHash;
+    }
+
+    const map = await this.findOneWithCache({ hash: mapHash });
+
+    if (!map) {
+      throw new HttpException(
+        createResponseErrorBody(HttpStatus.NOT_FOUND, 'Map not found'),
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    let dbParticipant = await this.participantsService.findOne({
+      userHash,
+      mapHash,
+    });
+
+    if (!dbParticipant) {
+      this.logger.log(
+        `Participant for user: ${userHash} not found in db for map: ${mapHash}`,
+      );
+      const participantData: Partial<MapParticipantEntity> = {
+        mapHash,
+      };
+
+      const user = await this.usersService.findOne({
+        hash: userHash,
+      });
+
+      if (!user) {
+        throw new HttpException(
+          createResponseErrorBody(HttpStatus.NOT_FOUND, 'Invalid userhash'),
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      participantData.name = `${user.firstName} ${user.lastName}`;
+      participantData.userHash = user.hash;
+
+      if (map.creator.hash === userHash) {
+        participantData.type = MAP_PARTICIPANT_TYPE.creator;
+      }
+
+      dbParticipant = await this.participantsService.createMapParticipant(
+        map,
+        participantData,
+      );
+    }
+
+    await Promise.all([
+      this.setCachedParticipantHashFromUserHash(
+        userHash,
+        mapHash,
+        dbParticipant.participantHash,
+      ),
+      this.participantsService.setCachedParticipant(
+        dbParticipant.participantHash,
+        mapHash,
+        dbParticipant,
+      ),
+    ]);
+
+    this.logger.log(`Set participant hash to cache user ${userHash}`);
+
+    return dbParticipant.participantHash;
+  }
+
   findOne(fields: FindOptionsWhere<MapEntity>) {
+    return this.mapsRepository.findOne({
+      where: fields,
+      relations: ['creator'],
+    });
+  }
+
+  findOneWithCache(fields: FindOptionsWhere<MapEntity>) {
     return this.mapsRepository.findOne({
       where: fields,
       relations: ['creator'],
@@ -527,6 +633,10 @@ export class MapsService {
 
       return [mapParticipant, map] as const;
     }
+  }
+
+  getMapParticipants(participantHashes: string | string[], mapHash: string) {
+    return this.participantsService.findWithCache(participantHashes, mapHash);
   }
 
   async getParticipantPermissions(

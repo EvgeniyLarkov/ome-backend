@@ -29,7 +29,7 @@ export class SocketsGateway
   server: Server;
 
   constructor(
-    readonly socketService: SocketStateService,
+    readonly socketStateService: SocketStateService,
     readonly socketCoreService: SocketCoreService,
   ) {}
 
@@ -37,12 +37,16 @@ export class SocketsGateway
     return this.socketCoreService.sendMessage(data);
   }
 
-  public sendRoomMessage<T>(server: Server, data: IWsResponseDataToRoom<T>) {
-    return this.socketCoreService.sendToRoom(server, data);
+  public sendRoomMessage<T>(data: IWsResponseDataToRoom<T>) {
+    return this.socketCoreService.sendToRoom(this.server, data);
   }
 
-  public joinRoom(client: Socket, mapHash: string) {
-    return this.socketCoreService.joinRoom(client, mapHash);
+  public joinRoom(client: Socket, mapHash: string, participantHash: string) {
+    return this.socketCoreService.joinRoom(client, mapHash, participantHash);
+  }
+
+  public leaveRoom(client: Socket, mapHash: string, participantHash: string) {
+    return this.socketCoreService.leaveRoom(client, mapHash, participantHash);
   }
 
   async handleConnection(client: Socket) {
@@ -51,5 +55,9 @@ export class SocketsGateway
 
   public handleDisconnect(client: Socket) {
     return this.socketCoreService.handleDisconnect(client);
+  }
+
+  public getRoomParticipants(roomHash: string) {
+    return this.socketCoreService.getRoomParticipants(roomHash);
   }
 }

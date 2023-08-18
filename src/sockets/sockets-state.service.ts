@@ -7,6 +7,12 @@ export class SocketStateService {
   private socketState = new Map<string, Socket[]>();
   private socketIdToUserHash = new Map<string, string>();
 
+  private socketParticipantHashToSocket = new Map<string, Socket[]>();
+  private socketRoomHashToParticipantHash = new Map<
+    string,
+    Map<string, string> | null
+  >();
+
   add(userHash: string, socket: Socket): boolean {
     const existingSockets = this.socketState.get(userHash) || [];
 

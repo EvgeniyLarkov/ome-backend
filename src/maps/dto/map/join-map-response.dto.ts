@@ -5,6 +5,7 @@ import { ParticipantMapPermissions } from 'src/maps/types/map-permissions.types'
 
 export type JoinMapResponseDTO = {
   actions: MapAction[];
+  participants: MapParticipantEntity[];
 };
 
 export type connectToMapDTO = {
