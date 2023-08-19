@@ -10,6 +10,7 @@ import { createResponseErrorBody } from 'src/utils/createResponseErrorBody';
 
 export const RequestHeader = createParamDecorator(
   //Removed ClassType<unknown>,, I don't think you need this here
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (value: any, ctx: ExecutionContext) => {
     // extract headers
     const headers = ctx.switchToHttp().getRequest().headers;
