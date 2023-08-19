@@ -12,7 +12,6 @@ import { User } from 'src/users/entities/user.entity';
 import { FindOptionsWhere } from 'typeorm/find-options/FindOptionsWhere';
 import { AppLogger } from 'src/logger/app-logger.service';
 import { MapEntity } from './entities/map.entity';
-import { IPaginationOptions } from 'src/utils/types/pagination-options';
 import { CreateMapDto } from './dto/map/create-map.dto';
 import { MapAction } from './entities/map-event.entity';
 import { Model } from 'mongoose';
@@ -30,13 +29,14 @@ import { CreateMapParticipantDto } from './dto/participant/create-map-participan
 import { MapParticipantEntity } from './entities/map-participants.entity';
 import { UsersService } from 'src/users/users.service';
 import { MAP_PARTICIPANT_TYPE } from './types/map-participant.types';
-import { ParticipantMapPermissions } from './types/map-permissions.types';
+import { MapParticipantPermissions } from './types/map-permissions.types';
 import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
 import { ChangeMapDto } from './dto/map/change-map.dto';
 import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 import { MapPermissionEntity } from './entities/map-permissions.entity';
 import { hoursToMilliseconds } from 'src/utils/hoursToMilliseconds';
 import { MAP_STATUSES } from './types/map.types';
+import { IPaginationOptions } from 'src/utils/types/pagination-options';
 
 @Injectable()
 export class MapsService {
@@ -617,12 +617,14 @@ export class MapsService {
         mapHash: map.hash,
       };
 
-      const user = await this.usersService.findOne({
-        hash: userHash,
-      });
+      const user = userHash
+        ? await this.usersService.findOne({
+            hash: userHash,
+          })
+        : null;
 
       if (user) {
-        participantData.name = `${user.firstName} + ${user.lastName}`;
+        participantData.name = `${user.firstName} ${user.lastName}`;
         participantData.userHash = user.hash;
 
         if (map.creator.hash === userHash) {
@@ -630,6 +632,10 @@ export class MapsService {
         }
       } else {
         participantData.participantHash = participantHash;
+        participantData.name = this.participantsService.getRandomName();
+        participantData.avatar = this.participantsService.getRandomAvatar(
+          participantData.name,
+        );
       }
 
       const participant = await this.participantsService.createMapParticipant(
@@ -684,7 +690,7 @@ export class MapsService {
       permissions = await this.permissionsService.createMapPermissions(map);
     }
 
-    let participantPermissions: ParticipantMapPermissions = {
+    let participantPermissions: MapParticipantPermissions = {
       view: false,
       edit_actions: false,
       drop_actions: false,
@@ -743,7 +749,7 @@ export class MapsService {
 
   extractParticipantSpecialPermissions(participant: MapParticipantEntity) {
     let specialPermissions: Omit<
-      Partial<ParticipantMapPermissions>,
+      Partial<MapParticipantPermissions>,
       'view'
     > = {};
 

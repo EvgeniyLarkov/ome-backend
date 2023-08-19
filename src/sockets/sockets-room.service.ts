@@ -140,4 +140,18 @@ export class SocketRoomService {
 
     return roomParticipants ? [...roomParticipants.keys()] : [];
   }
+
+  getRoomsBySid(sid: string): string[] {
+    const rooms = this.sidToRooms.get(sid);
+
+    if (rooms) {
+      return [...rooms.keys()];
+    }
+
+    return [];
+  }
+
+  getParticipantHashBySid(sid: string): string | null {
+    return this.sidToPhash.get(sid);
+  }
 }

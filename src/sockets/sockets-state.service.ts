@@ -2,24 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { User } from 'src/users/entities/user.entity';
 
+type SocketStateUser = { hash: User['hash']; logined: boolean };
+
 @Injectable()
 export class SocketStateService {
   private socketState = new Map<string, Socket[]>();
-  private socketIdToUserHash = new Map<string, string>();
+  private socketIdToUserHash = new Map<string, SocketStateUser>();
 
-  private socketParticipantHashToSocket = new Map<string, Socket[]>();
-  private socketRoomHashToParticipantHash = new Map<
-    string,
-    Map<string, string> | null
-  >();
-
-  add(userHash: string, socket: Socket): boolean {
+  add(userHash: string, logined: boolean, socket: Socket): boolean {
     const existingSockets = this.socketState.get(userHash) || [];
 
     const sockets = [...existingSockets, socket];
 
     this.socketState.set(userHash, sockets);
-    this.socketIdToUserHash.set(socket.id, userHash);
+    this.socketIdToUserHash.set(socket.id, { hash: userHash, logined });
 
     return true;
   }
@@ -48,7 +44,7 @@ export class SocketStateService {
     return this.socketState.get(userHash) || [];
   }
 
-  getUserBySocketId(socketId: string): User['hash'] {
+  getUserBySocketId(socketId: string): SocketStateUser {
     return this.socketIdToUserHash.get(socketId);
   }
 

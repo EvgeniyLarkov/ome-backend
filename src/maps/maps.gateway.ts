@@ -31,6 +31,8 @@ import { JoinMapResponseDTO } from './dto/map/join-map-response.dto';
 import { UseFilters } from '@discord-nestjs/core';
 import { WebsocketExceptionsFilter } from 'src/sockets/ws-exceptions.filter';
 import { InterceptorForClassSerializer } from 'src/shared/interceptors/class-serializer';
+import { ParticipantLeaveResponseDTO } from './dto/map/participant-leave-response.dto';
+import { ParticipantJoinResponseDTO } from './dto/map/participant-join-response.dto copy';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -59,16 +61,23 @@ export class MapsGateway extends SocketsGateway {
 
   @WebSocketServer() server: Server;
 
+  onModuleInit() {
+    this.socketCoreService.addOnDisconnectedFunction(
+      this.emitToRoomsOnParticipantDisconnect(this),
+    );
+  }
+
   @SubscribeMessage(MAP_EVENTS.join_map)
   async joinMap(
     @MessageBody() data: CreateMapParticipantDto,
     @ConnectedSocket() client: Socket,
   ): Promise<WsResponse<JoinMapResponseDTO>> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
-    const participantHash = await this.mapsService.getMapParticipantFromUser(
-      userHash,
-      data.mapHash,
+    const { hash: userHash, logined } = this.socketService.getUserBySocketId(
+      client.id,
     );
+    const participantHash = logined
+      ? await this.mapsService.getMapParticipantFromUser(userHash, data.mapHash)
+      : userHash;
 
     const [participant, permissions] =
       await this.mapsService.getMapParticipantWithPermissisons(
@@ -78,24 +87,20 @@ export class MapsGateway extends SocketsGateway {
 
     if (!permissions.view) {
       return {
-        // TO-do
         event: MAP_EVENTS.join_map,
         data: {
           mapHash: data.mapHash,
           actions: [],
           participants: [],
-        },
+        }, // TO-DO add types to ws response
       };
     }
 
-    this.socketCoreService.joinRoom(client, data.mapHash, participantHash);
-
-    const response = {
+    const response: ParticipantJoinResponseDTO = {
       participant,
-      room: data.mapHash,
+      mapHash: data.mapHash,
     };
 
-    //TO-DO sanitize sending data
     this.sendRoomMessage({
       message: response,
       event: MAP_EVENTS.participant_join,
@@ -113,6 +118,8 @@ export class MapsGateway extends SocketsGateway {
       data.mapHash,
     );
 
+    this.socketCoreService.joinRoom(client, data.mapHash, participantHash);
+
     return {
       event: MAP_EVENTS.join_map,
       data: {
@@ -128,7 +135,7 @@ export class MapsGateway extends SocketsGateway {
     @MessageBody() data: CreateMapParticipantDto,
     @ConnectedSocket() client: Socket,
   ): Promise<WsResponse<boolean>> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
     const participantHash = await this.mapsService.getMapParticipantFromUser(
       userHash,
       data.mapHash,
@@ -136,8 +143,12 @@ export class MapsGateway extends SocketsGateway {
 
     this.socketCoreService.leaveRoom(client, data.mapHash, participantHash);
 
+    const response: ParticipantLeaveResponseDTO = {
+      participantHash,
+    };
+
     this.sendRoomMessage({
-      message: { participantHash },
+      message: response,
       event: MAP_EVENTS.participant_leave,
       room: data.mapHash,
     });
@@ -153,7 +164,7 @@ export class MapsGateway extends SocketsGateway {
     @MessageBody() data: MapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
 
     const response = await this.mapsService.createMapAction(userHash, data);
 
@@ -170,7 +181,7 @@ export class MapsGateway extends SocketsGateway {
     @MessageBody() data: DropMapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
 
     const response = await this.mapsService.dropMapAction(userHash, data);
 
@@ -188,7 +199,7 @@ export class MapsGateway extends SocketsGateway {
     @MessageBody() data: ChangeMapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
 
     const response = await this.mapsService.changeMapAction(userHash, data);
 
@@ -198,5 +209,36 @@ export class MapsGateway extends SocketsGateway {
       event: MAP_EVENTS.change_action,
       room: data.mapHash,
     });
+  }
+
+  emitToRoomsOnParticipantDisconnect(
+    service: MapsGateway,
+  ): (sid: string) => void {
+    return (sid: string) => {
+      const rooms = service.socketCoreService.getRoomsBySid(sid);
+
+      if (rooms.length === 0) {
+        return;
+      }
+
+      const participantHash =
+        service.socketCoreService.getParticipantBySocketId(sid);
+
+      if (!participantHash) {
+        return;
+      }
+
+      const response: ParticipantLeaveResponseDTO = {
+        participantHash,
+      };
+
+      rooms.forEach((room) => {
+        service.sendRoomMessage({
+          message: response,
+          event: MAP_EVENTS.participant_leave,
+          room: room,
+        });
+      });
+    };
   }
 }

@@ -69,6 +69,7 @@
     "passport-jwt": "4.0.0",
     "pg": "8.7.3",
     "puppeteer": "^19.4.0",
+    "random-avatar-generator": "^2.0.0",
     "reflect-metadata": "0.1.13",
     "rimraf": "3.0.2",
     "rxjs": "7.5.5",
@@ -78,7 +79,8 @@
     "telegraf": "^4.11.2",
     "twitter": "1.7.1",
     "typeorm": "0.3.11",
-    "typeorm-transactional-cls-hooked": "^0.1.21"
+    "typeorm-transactional-cls-hooked": "^0.1.21",
+    "unique-names-generator": "^4.7.1"
   },
   "devDependencies": {
     "@concepta/typeorm-seeding": "^4.0.0-beta.0",

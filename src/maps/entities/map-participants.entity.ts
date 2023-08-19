@@ -27,6 +27,9 @@ export class MapParticipantEntity {
   @Prop({ required: false, default: () => `Map user ${new Date().toString()}` })
   name: string;
 
+  @Prop({ default: null })
+  avatar: string | null;
+
   @Prop({ index: true, default: MAP_PARTICIPANT_TYPE.viewer })
   type: mapParticipantTypes;
 

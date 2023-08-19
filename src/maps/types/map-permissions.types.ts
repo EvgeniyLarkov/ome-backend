@@ -10,7 +10,7 @@ type MAP_EDIT_PERMISSIONS_KEYS = keyof typeof MAP_EDIT_PERMISSIONS;
 export type mapsEditPermissions =
   typeof MAP_EDIT_PERMISSIONS[MAP_EDIT_PERMISSIONS_KEYS];
 
-export type ParticipantMapPermissions = {
+export type MapParticipantPermissions = {
   view: boolean;
   edit_actions: boolean;
   drop_actions: boolean;

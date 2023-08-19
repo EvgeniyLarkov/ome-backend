@@ -27,6 +27,8 @@ import { ChangeMapParticipantDto } from './dto/participant/change-map-participan
 import { InterceptorForClassSerializer } from 'src/shared/interceptors/class-serializer';
 import { ChangeMapDto } from './dto/map/change-map.dto';
 import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
+import { RequestHeader } from 'src/shared/decorators/RequestHeader';
+import { AnonymousRequestHeader } from './types/anon-header';
 
 @ApiTags('Maps')
 @Controller({
@@ -135,9 +137,9 @@ export class MapsController {
   @Post('/connect/unlogined/:hash')
   async connectToMapUnlogined(
     @Param('hash') hash: string,
-    @Headers('anonymous-id') anonId: string,
+    @RequestHeader(AnonymousRequestHeader) headers: AnonymousRequestHeader,
   ): Promise<connectToMapDTO> {
-    const userHash = anonId;
+    const userHash = headers['anonymous-id']; //TO-DO add undefined check
 
     const [participant, permissions, map] =
       await this.mapsService.getMapParticipantWithPermissisons(

@@ -8,10 +8,19 @@ import { Model } from 'mongoose';
 import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
 import { Cache } from 'cache-manager';
 import { hoursToMilliseconds } from 'src/utils/hoursToMilliseconds';
+import {
+  uniqueNamesGenerator,
+  Config,
+  adjectives,
+  animals,
+} from 'unique-names-generator';
+import { AvatarGenerator } from 'random-avatar-generator';
 
 @Injectable()
 export class MapsParticipantsService {
   MAP_PARTICIPANT_CACHE_TTL = hoursToMilliseconds(1);
+
+  private avatarGenerator = new AvatarGenerator();
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -43,8 +52,10 @@ export class MapsParticipantsService {
     );
   }
 
-  findOne(fields: FindOptionsWhere<MapParticipantEntity>) {
-    return this.mapParticipantModel.findOne(
+  async findOne(
+    fields: FindOptionsWhere<MapParticipantEntity>,
+  ): Promise<MapParticipantEntity> {
+    return await this.mapParticipantModel.findOne(
       {
         ...fields,
       },
@@ -121,7 +132,7 @@ export class MapsParticipantsService {
   async createMapParticipant(
     map: MapEntity,
     data?: Partial<MapParticipantEntity>,
-  ) {
+  ): Promise<MapParticipantEntity> {
     const participantData: Partial<MapParticipantEntity> = {
       mapHash: map.hash,
       ...data,
@@ -130,7 +141,7 @@ export class MapsParticipantsService {
     const mapParticipant = new this.mapParticipantModel(participantData);
     const dbParticipant = await mapParticipant.save();
 
-    return dbParticipant;
+    return dbParticipant.toObject();
   }
 
   async changeMapParticpant(
@@ -144,7 +155,24 @@ export class MapsParticipantsService {
         participantHash,
       },
       data,
-      { returnDocument: 'after' },
+      { returnDocument: 'after', new: true, lean: true },
     );
+  }
+
+  getRandomName(): string {
+    const customConfig: Config = {
+      dictionaries: [adjectives, animals],
+      separator: ' ',
+      length: 2,
+      style: 'capital',
+    };
+
+    return uniqueNamesGenerator(customConfig);
+  }
+
+  getRandomAvatar(seed?: string) {
+    return seed
+      ? this.avatarGenerator.generateRandomAvatar(seed)
+      : this.avatarGenerator.generateRandomAvatar();
   }
 }

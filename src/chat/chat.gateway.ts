@@ -48,7 +48,7 @@ export class ChatGateway extends SocketsGateway {
     @MessageBody() data: MessagePostDto & Pick<ChatDialogEntity, 'uuid'>,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
 
     const [message, dialog] = await this.chatService.createMessage({
       userHash,
@@ -68,7 +68,7 @@ export class ChatGateway extends SocketsGateway {
     @MessageBody() data: MessageGetDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const userHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
 
     const result = await this.chatService.makeChatMessageReaded({
       userHash,
@@ -93,8 +93,9 @@ export class ChatGateway extends SocketsGateway {
     @MessageBody() data: { onlineUsers: string[] },
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const clientHash = this.socketService.getUserBySocketId(client.id);
-
+    const { hash: clientHash } = this.socketService.getUserBySocketId(
+      client.id,
+    );
     const { onlineUsers } = data;
 
     const getOnlineUsers = async () => {
@@ -128,7 +129,9 @@ export class ChatGateway extends SocketsGateway {
     @MessageBody() data: { dialogUUID: string },
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const clientHash = this.socketService.getUserBySocketId(client.id);
+    const { hash: clientHash } = this.socketService.getUserBySocketId(
+      client.id,
+    );
 
     const { dialogUUID } = data;
 

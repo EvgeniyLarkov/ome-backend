@@ -31,6 +31,12 @@ import { IRequestUser } from './types/user';
 export class AuthController {
   constructor(public service: AuthService) {}
 
+  @Get('anonymous')
+  @HttpCode(HttpStatus.OK)
+  public getUniqueId(): string {
+    return this.service.getUniqueAnonId();
+  }
+
   @Post('email/login')
   @HttpCode(HttpStatus.OK)
   public async login(@Body() loginDto: AuthEmailLoginDto) {

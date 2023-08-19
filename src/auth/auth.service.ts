@@ -20,6 +20,7 @@ import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
+import getShortId from 'src/utils/short-id-generator';
 
 @Injectable()
 export class AuthService {
@@ -320,5 +321,9 @@ export class AuthService {
 
   async softDelete(user: User): Promise<void> {
     await this.usersService.softDelete(user.id);
+  }
+
+  getUniqueAnonId(): string {
+    return getShortId(10);
   }
 }

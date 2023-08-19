@@ -30,6 +30,8 @@ export interface IWsResponseDataToRoom<T> {
 
 @Injectable()
 export class SocketCoreService {
+  private onSocketDisconnectedFunctions: ((sid: string) => void)[] = [];
+
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly socketService: SocketStateService,
@@ -128,7 +130,7 @@ export class SocketCoreService {
           );
         }
 
-        const result = this.socketService.add(user.hash, client);
+        const result = this.socketService.add(user.hash, true, client);
 
         this.emitServiceOnJoinData(client, {
           result,
@@ -158,7 +160,7 @@ export class SocketCoreService {
           await this.cacheManager.set(`online.${anonId}`, true, 60 * 60 * 1000);
         }
 
-        const result = this.socketService.add(anonId, client);
+        const result = this.socketService.add(anonId, false, client);
 
         this.emitServiceOnJoinData(client, {
           result,
@@ -186,8 +188,18 @@ export class SocketCoreService {
     return this.socketRoomService.getRoomParticipants(roomHash);
   }
 
+  public getRoomsBySid(socketId: string) {
+    return this.socketRoomService.getRoomsBySid(socketId);
+  }
+
+  public getParticipantBySocketId(socketId: string) {
+    return this.socketRoomService.getParticipantHashBySid(socketId);
+  }
+
   async handleDisconnect(client: Socket) {
     try {
+      this.onSocketDisconnectedFunctions.forEach((func) => func(client.id));
+
       this.socketRoomService.disconnect(client);
       const token = this.getTokenFromClient(client);
 
@@ -237,5 +249,9 @@ export class SocketCoreService {
 
   emitServiceOnJoinData(client: Socket, data: onConnectedResponseDTO) {
     client.emit(SOCKET_SERVICE_EVENTS.on_connect, data);
+  }
+
+  addOnDisconnectedFunction(func: (sid: string) => void) {
+    this.onSocketDisconnectedFunctions.push(func);
   }
 }
