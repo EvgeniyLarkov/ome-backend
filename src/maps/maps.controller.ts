@@ -10,7 +10,6 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   Param,
-  Headers,
   Patch,
   UseInterceptors,
   ClassSerializerInterceptor,
@@ -29,6 +28,11 @@ import { ChangeMapDto } from './dto/map/change-map.dto';
 import { ChangeMapPermissionsDto } from './dto/permissions/change-map-permissions.dto';
 import { RequestHeader } from 'src/shared/decorators/RequestHeader';
 import { AnonymousRequestHeader } from './types/anon-header';
+import { MapsControllerToGatewayService } from './maps-controller-to-gateway.service';
+import { MapEntity } from './entities/map.entity';
+import { MapPermissionEntity } from './entities/map-permissions.entity';
+import { MapAction } from './entities/map-event.entity';
+import { MapParticipantEntity } from './entities/map-participants.entity';
 
 @ApiTags('Maps')
 @Controller({
@@ -40,7 +44,10 @@ import { AnonymousRequestHeader } from './types/anon-header';
 })
 @UseInterceptors(ClassSerializerInterceptor, InterceptorForClassSerializer)
 export class MapsController {
-  constructor(private readonly mapsService: MapsService) {}
+  constructor(
+    private readonly mapsService: MapsService,
+    private readonly wsGateway: MapsControllerToGatewayService,
+  ) {}
 
   @ApiBearerAuth()
   @Post()
@@ -48,7 +55,7 @@ export class MapsController {
   async createMap(
     @Body() data: CreateMapDto,
     @Request() request: IRequestUser,
-  ) {
+  ): Promise<MapEntity> {
     const result = await this.mapsService.createMap(request.user, data);
 
     return result;
@@ -61,7 +68,7 @@ export class MapsController {
     @Request() request: IRequestUser,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-  ) {
+  ): Promise<MapEntity[]> {
     if (limit > 50) {
       limit = 50;
     }
@@ -84,7 +91,7 @@ export class MapsController {
   async deleteMapLogined(
     @Request() request: IRequestUser,
     @Param('hash') mapHash: string,
-  ) {
+  ): Promise<boolean> {
     const userHash = request.user.hash;
 
     return await this.mapsService.dropMap(userHash, mapHash);
@@ -97,21 +104,37 @@ export class MapsController {
     @Request() request: IRequestUser,
     @Param('hash') mapHash: string,
     @Body() data: ChangeMapDto,
-  ) {
+  ): Promise<MapEntity> {
     const userHash = request.user.hash;
 
-    return await this.mapsService.changeMap({ userHash }, mapHash, data);
+    const result = await this.mapsService.changeMap(
+      { userHash },
+      mapHash,
+      data,
+    );
+
+    this.wsGateway.sendChangeMapToRoom(mapHash, result);
+
+    return result;
   }
 
   @Patch(':hash')
   async changeMapUnlogined(
-    @Headers('anonymous-id') anonId: string,
+    @RequestHeader(AnonymousRequestHeader) headers: AnonymousRequestHeader,
     @Param('hash') mapHash: string,
     @Body() data: ChangeMapDto,
-  ) {
-    const participantHash = anonId;
+  ): Promise<MapEntity> {
+    const userHash = headers['anonymous-id'];
 
-    return await this.mapsService.changeMap({ participantHash }, mapHash, data);
+    const result = await this.mapsService.changeMap(
+      { participantHash: userHash },
+      mapHash,
+      data,
+    );
+
+    this.wsGateway.sendChangeMapToRoom(mapHash, result);
+
+    return result;
   }
 
   @ApiBearerAuth()
@@ -159,7 +182,7 @@ export class MapsController {
     @Request() request: IRequestUser,
     @Param('hash') participantHash: string,
     @Body() data: ChangeMapParticipantDto,
-  ) {
+  ): Promise<MapParticipantEntity> {
     const userHash = request.user.hash;
 
     const result = await this.mapsService.changeMapParticipant(
@@ -168,20 +191,26 @@ export class MapsController {
       data,
     );
 
+    this.wsGateway.sendChangeParticipantToRoom(data.mapHash, result);
+
     return result;
   }
 
   @Patch('/participant/:hash')
   async changeMapParticipantUnlogined(
-    @Headers('anonymous-id') anonId: string | null,
+    @RequestHeader(AnonymousRequestHeader) headers: AnonymousRequestHeader,
     @Param('hash') participantHash: string,
     @Body() data: ChangeMapParticipantDto,
-  ) {
+  ): Promise<MapParticipantEntity> {
+    const userHash = headers['anonymous-id'];
+
     const result = await this.mapsService.changeMapParticipant(
       participantHash,
-      { participantHash: anonId },
+      { participantHash: userHash },
       data,
     );
+
+    this.wsGateway.sendChangeParticipantToRoom(data.mapHash, result);
 
     return result;
   }
@@ -192,7 +221,7 @@ export class MapsController {
   async getMapPermissionsLogined(
     @Request() request: IRequestUser,
     @Param('hash') mapHash: string,
-  ) {
+  ): Promise<MapPermissionEntity> {
     const userHash = request.user.hash;
 
     const result = await this.mapsService.getMapPermissions(
@@ -205,11 +234,13 @@ export class MapsController {
 
   @Get('/permissions/:hash')
   async getMapPermissionsUnlogined(
-    @Headers('anonymous-id') anonId: string | null,
+    @RequestHeader(AnonymousRequestHeader) headers: AnonymousRequestHeader,
     @Param('hash') mapHash: string,
-  ) {
+  ): Promise<MapPermissionEntity> {
+    const userHash = headers['anonymous-id'];
+
     const result = await this.mapsService.getMapPermissions(
-      { participantHash: anonId },
+      { participantHash: userHash },
       mapHash,
     );
 
@@ -223,7 +254,7 @@ export class MapsController {
     @Request() request: IRequestUser,
     @Param('hash') mapHash: string,
     @Body() data: ChangeMapPermissionsDto,
-  ) {
+  ): Promise<MapPermissionEntity> {
     const userHash = request.user.hash;
 
     const result = await this.mapsService.changeMapPermissions(
@@ -232,20 +263,26 @@ export class MapsController {
       data,
     );
 
+    this.wsGateway.sendChangeMapPermissionsToRoom(mapHash, result);
+
     return result;
   }
 
   @Patch('/permissions/:hash')
   async changeMapPermissionsUnlogined(
-    @Headers('anonymous-id') anonId: string | null,
+    @RequestHeader(AnonymousRequestHeader) headers: AnonymousRequestHeader,
     @Param('hash') mapHash: string,
     @Body() data: ChangeMapPermissionsDto,
-  ) {
+  ): Promise<MapPermissionEntity> {
+    const userHash = headers['anonymous-id'];
+
     const result = await this.mapsService.changeMapPermissions(
-      { participantHash: anonId },
+      { participantHash: userHash },
       mapHash,
       data,
     );
+
+    this.wsGateway.sendChangeMapPermissionsToRoom(mapHash, result);
 
     return result;
   }
@@ -257,7 +294,7 @@ export class MapsController {
     @Request() request: IRequestUser,
     @Body() data: MapActionDto,
     @Param('hash') hash: string,
-  ) {
+  ): Promise<MapAction> {
     return await this.mapsService.createMapAction(request.user.hash, {
       ...data,
       mapHash: hash,
@@ -270,7 +307,7 @@ export class MapsController {
   async getMapAction(
     @Request() request: IRequestUser,
     @Param('hash') hash: string,
-  ) {
+  ): Promise<MapAction[]> {
     return await this.mapsService.getSelfMapActions(request.user, hash);
   }
 }

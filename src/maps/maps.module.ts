@@ -15,6 +15,7 @@ import {
 import { UsersModule } from 'src/users/users.module';
 import { MapsPermissionsService } from './maps-permissions.service';
 import { MapsParticipantsService } from './maps-participants.service';
+import { MapsControllerToGatewayService } from './maps-controller-to-gateway.service';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MapsParticipantsService } from './maps-participants.service';
     MapsService,
     MapsPermissionsService,
     MapsParticipantsService,
+    MapsControllerToGatewayService,
     MapsGateway,
   ],
   exports: [MapsService],

@@ -33,6 +33,7 @@ import { WebsocketExceptionsFilter } from 'src/sockets/ws-exceptions.filter';
 import { InterceptorForClassSerializer } from 'src/shared/interceptors/class-serializer';
 import { ParticipantLeaveResponseDTO } from './dto/map/participant-leave-response.dto';
 import { ParticipantJoinResponseDTO } from './dto/map/participant-join-response.dto copy';
+import { MapsControllerToGatewayService } from './maps-controller-to-gateway.service';
 
 @ApiTags('Maps-ws')
 @WebSocketGateway({
@@ -52,6 +53,7 @@ export class MapsGateway extends SocketsGateway {
     readonly mapsService: MapsService,
     readonly socketService: SocketStateService,
     readonly socketCoreService: SocketCoreService,
+    readonly controllerToGateway: MapsControllerToGatewayService,
   ) {
     super(socketService, socketCoreService);
 
@@ -65,6 +67,8 @@ export class MapsGateway extends SocketsGateway {
     this.socketCoreService.addOnDisconnectedFunction(
       this.emitToRoomsOnParticipantDisconnect(this),
     );
+
+    this.controllerToGateway.setSocketServer(this.server);
   }
 
   @SubscribeMessage(MAP_EVENTS.join_map)
