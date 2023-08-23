@@ -28,7 +28,10 @@ import { MapsParticipantsService } from './maps-participants.service';
 import { CreateMapParticipantDto } from './dto/participant/create-map-participant.dto';
 import { MapParticipantEntity } from './entities/map-participants.entity';
 import { UsersService } from 'src/users/users.service';
-import { MAP_PARTICIPANT_TYPE } from './types/map-participant.types';
+import {
+  MAP_PARTICIPANT_STATUS,
+  MAP_PARTICIPANT_TYPE,
+} from './types/map-participant.types';
 import { MapParticipantPermissions } from './types/map-permissions.types';
 import { ChangeMapParticipantDto } from './dto/participant/change-map-participant.dto';
 import { ChangeMapDto } from './dto/map/change-map.dto';
@@ -37,6 +40,7 @@ import { MapPermissionEntity } from './entities/map-permissions.entity';
 import { hoursToMilliseconds } from 'src/utils/hoursToMilliseconds';
 import { MAP_STATUSES } from './types/map.types';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { OMEActionsData } from './types/map-action.types';
 
 @Injectable()
 export class MapsService {
@@ -271,12 +275,36 @@ export class MapsService {
     });
   }
 
-  async createMapAction(userHash: User['hash'], mapData: MapActionDto) {
+  async createMapAction(
+    participantData: {
+      userHash?: string;
+      participantHash?: string;
+    },
+    mapData: MapActionDto,
+  ) {
+    const [participant, permissions] =
+      await this.getMapParticipantWithPermissisons(participantData, {
+        mapHash: mapData.mapHash,
+      });
+
+    if (
+      !permissions.add_actions ||
+      participant.status === MAP_PARTICIPANT_STATUS.banned
+    ) {
+      throw new HttpException(
+        createResponseErrorBody(
+          HttpStatus.FORBIDDEN,
+          'You do not have permission to create map actions',
+        ),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     try {
       const { mapHash, type, coordinates, data } = mapData;
 
-      const mapEventData: MapActionDB = {
-        creatorHash: userHash,
+      const mapEventData: MapActionDB<OMEActionsData> = {
+        creatorHash: participant.participantHash,
         mapHash,
         type,
         lat: null,
@@ -309,7 +337,7 @@ export class MapsService {
       // TO-DO Need to add permissions by user
       const { mapHash, hash } = mapData;
 
-      const mapEventData: Partial<MapActionDB> = {
+      const mapEventData: Partial<MapActionDB<OMEActionsData>> = {
         status: -1,
         deletedAt: new Date(),
       };
@@ -331,23 +359,49 @@ export class MapsService {
     }
   }
 
-  async changeMapAction(userHash: User['hash'], mapData: ChangeMapActionDto) {
+  async changeMapAction(
+    participantData: {
+      userHash?: string;
+      participantHash?: string;
+    },
+    mapData: ChangeMapActionDto,
+  ) {
+    const [participant, permissions] =
+      await this.getMapParticipantWithPermissisons(participantData, {
+        mapHash: mapData.mapHash,
+      });
+
+    if (
+      !permissions.edit_actions ||
+      participant.status === MAP_PARTICIPANT_STATUS.banned
+    ) {
+      throw new HttpException(
+        createResponseErrorBody(
+          HttpStatus.FORBIDDEN,
+          'You do not have permission to create map actions',
+        ),
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     try {
       // Types of payload and necessary fields already checked
-
-      const mapEventData: Partial<MapActionDB> = {};
+      const { mapHash, hash, coordinates, data } = mapData;
+      const mapEventData: Partial<MapActionDB<OMEActionsData>> = {};
 
       if (mapData.coordinates && isLatLngAsObject(mapData.coordinates)) {
-        mapEventData.lat = mapData.coordinates.lat;
-        mapEventData.lng = mapData.coordinates.lng;
+        mapEventData.lat = coordinates.lat;
+        mapEventData.lng = coordinates.lng;
       }
 
-      // TO-DO add data fields
+      if (data) {
+        mapEventData.data = data;
+      }
 
       const result = await this.mapEventModel.findOneAndUpdate(
         {
-          hash: mapData.hash,
-          mapHash: mapData.mapHash,
+          hash: hash,
+          mapHash: mapHash,
         },
         mapEventData,
         { new: true, lean: true },

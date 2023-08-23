@@ -1,6 +1,6 @@
-export function isLatLngAsObject(
-  latlng: unknown,
-): latlng is { lat: number; lng: number } {
+import { LatLng } from './types/latlng.type';
+
+export function isLatLngAsObject(latlng: unknown): latlng is LatLng {
   if (typeof latlng === 'object') {
     const latlngObj = latlng as unknown as Record<string, unknown>;
 

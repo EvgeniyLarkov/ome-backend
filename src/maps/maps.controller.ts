@@ -295,10 +295,13 @@ export class MapsController {
     @Body() data: MapActionDto,
     @Param('hash') hash: string,
   ): Promise<MapAction> {
-    return await this.mapsService.createMapAction(request.user.hash, {
-      ...data,
-      mapHash: hash,
-    });
+    return await this.mapsService.createMapAction(
+      { userHash: request.user.hash },
+      {
+        ...data,
+        mapHash: hash,
+      },
+    );
   }
 
   @ApiBearerAuth()

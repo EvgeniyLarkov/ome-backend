@@ -18,6 +18,8 @@ export type mapsActionNames = typeof MAP_EVENTS[MAP_EVENTS_KEYS];
 export const MAP_ACTION_TYPES = {
   initial_position: 0,
   marker: 1,
+  polyline: 2,
+  polygone: 3,
 } as const;
 
 type MAP_ACTION_TYPES_KEYS = keyof typeof MAP_ACTION_TYPES;

@@ -168,9 +168,18 @@ export class MapsGateway extends SocketsGateway {
     @MessageBody() data: MapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash, logined } = this.socketService.getUserBySocketId(
+      client.id,
+    );
 
-    const response = await this.mapsService.createMapAction(userHash, data);
+    const participantHash = logined
+      ? await this.mapsService.getMapParticipantFromUser(userHash, data.mapHash)
+      : userHash;
+
+    const response = await this.mapsService.createMapAction(
+      { userHash, participantHash },
+      data,
+    );
 
     //TO-DO sanitize sending data
     this.sendRoomMessage({
@@ -203,9 +212,18 @@ export class MapsGateway extends SocketsGateway {
     @MessageBody() data: ChangeMapActionDto,
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    const { hash: userHash } = this.socketService.getUserBySocketId(client.id);
+    const { hash: userHash, logined } = this.socketService.getUserBySocketId(
+      client.id,
+    );
 
-    const response = await this.mapsService.changeMapAction(userHash, data);
+    const participantHash = logined
+      ? await this.mapsService.getMapParticipantFromUser(userHash, data.mapHash)
+      : userHash;
+
+    const response = await this.mapsService.changeMapAction(
+      { userHash, participantHash },
+      data,
+    );
 
     //TO-DO sanitize sending data
     this.sendRoomMessage({
